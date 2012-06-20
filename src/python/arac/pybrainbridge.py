@@ -3,7 +3,7 @@
 
 """This module provides a bridge from arac to PyBrain.
 
-Arac features ways to compose networks similar to PyBrain. Since arac is C++ 
+Arac features ways to compose networks similar to PyBrain. Since arac is C++
 which is not easily usable from python, inline weave is used to construct an arac
 network in parallel.
 
@@ -27,9 +27,9 @@ from pybrain.structure import (
     FeedForwardNetwork,
     FullConnection,
     GateLayer,
-    IdentityConnection, 
-    LinearConnection, 
-    LinearLayer, 
+    IdentityConnection,
+    LinearConnection,
+    LinearLayer,
     LSTMLayer,
     MDLSTMLayer,
     MultiplicationLayer,
@@ -37,36 +37,37 @@ from pybrain.structure import (
     PartialSoftmaxLayer,
     RecurrentNetwork,
     SharedFullConnection,
-    SigmoidLayer, 
+    SigmoidLayer,
     SoftmaxLayer,
     SwitchLayer,
     TanhLayer,
+    MixtureDensityNetwork
 )
 
 from pybrain.structure.networks.feedforward import \
     FeedForwardNetworkComponent, FeedForwardNetwork
 from pybrain.structure.networks.recurrent import RecurrentNetworkComponent, \
     RecurrentNetwork
-    
+
 import arac.cppbridge as cppbridge
 
 
 class PybrainAracMapper(object):
-    """Class that holds pybrain objects mapped to arac objects and provides 
+    """Class that holds pybrain objects mapped to arac objects and provides
     handlers to create new ones from pybrain objects."""
-    
+
     classmapping = {
         BiasUnit: cppbridge.Bias,
-        LinearLayer: cppbridge.LinearLayer, 
-        GateLayer: cppbridge.GateLayer, 
-        MultiplicationLayer: cppbridge.MultiplicationLayer, 
-        DoubleGateLayer: cppbridge.DoubleGateLayer, 
-        SwitchLayer: cppbridge.SwitchLayer, 
+        LinearLayer: cppbridge.LinearLayer,
+        GateLayer: cppbridge.GateLayer,
+        MultiplicationLayer: cppbridge.MultiplicationLayer,
+        DoubleGateLayer: cppbridge.DoubleGateLayer,
+        SwitchLayer: cppbridge.SwitchLayer,
         LSTMLayer: cppbridge.LstmLayer,
-        SigmoidLayer: cppbridge.SigmoidLayer, 
+        SigmoidLayer: cppbridge.SigmoidLayer,
         SoftmaxLayer: cppbridge.SoftmaxLayer,
         TanhLayer: cppbridge.TanhLayer,
-        IdentityConnection: cppbridge.IdentityConnection, 
+        IdentityConnection: cppbridge.IdentityConnection,
         FullConnection: cppbridge.FullConnection,
         SharedFullConnection: cppbridge.FullConnection,
         LinearConnection: cppbridge.LinearConnection,
@@ -74,29 +75,42 @@ class PybrainAracMapper(object):
 
     def __init__(self):
         self.clear()
-    
+
     def __del__(self):
         self.clear()
-        
+
     def __getitem__(self, key):
         return self.map[key]
-        
+
     def __setitem__(self, key, value):
         self.map[key] = value
-    
+
     def __contains__(self, key):
         return key in self.map
-    
+
     def clear(self):
         """Free the current map and all the held structures."""
         self.map = {}
 
     def _network_handler(self, network):
         # See if there already is a proxy:
-        try: 
+        try:
             proxy = self[network]
         except KeyError:
             proxy = cppbridge.Network()
+            self[network] = proxy
+        proxy.init_input(network.inputbuffer)
+        proxy.init_output(network.outputbuffer)
+        proxy.init_inerror(network.inputerror)
+        proxy.init_outerror(network.outputerror)
+        return proxy
+
+    def _mdn_handler(self, network):
+        # See if there already is a proxy:
+        try:
+            proxy = self[network]
+        except KeyError:
+            proxy = cppbridge.MDN(network.M, network.c)
             self[network] = proxy
         proxy.init_input(network.inputbuffer)
         proxy.init_output(network.outputbuffer)
@@ -127,7 +141,7 @@ class PybrainAracMapper(object):
         proxy.init_inerror(layer.inputerror)
         proxy.init_outerror(layer.outputerror)
         return proxy
-        
+
     def _bias_handler(self, bias):
         try:
             proxy = self[bias]
@@ -139,10 +153,10 @@ class PybrainAracMapper(object):
         proxy.init_inerror(bias.inputerror)
         proxy.init_outerror(bias.outputerror)
         return proxy
-        
+
     def _lstm_handler(self, layer):
         # See if there already is a proxy:
-        try: 
+        try:
             proxy = self.map[layer]
         except KeyError:
             proxy = cppbridge.LstmLayer(layer.dim)
@@ -154,10 +168,10 @@ class PybrainAracMapper(object):
         proxy.init_outerror(layer.outputerror)
         proxy.init_state_error(layer.stateError)
         return proxy
-        
+
     def _mdlstm_handler(self, layer):
         # See if there already is a proxy:
-        try: 
+        try:
             proxy = self.map[layer]
         except KeyError:
             proxy = cppbridge.MdlstmLayer(layer.dimensions, layer.dim)
@@ -166,8 +180,8 @@ class PybrainAracMapper(object):
         proxy.init_output(layer.outputbuffer)
         proxy.init_inerror(layer.inputerror)
         proxy.init_outerror(layer.outputerror)
-        
-        # FIXME: we have to make a buffer especially for this layer to give to 
+
+        # FIXME: we have to make a buffer especially for this layer to give to
         # arac. We attach this to the original pybrain layer object.
         layer.inputx = scipy.zeros((layer.dimensions, layer.dim))
         proxy.init_input_squashed(layer.inputx)
@@ -177,7 +191,7 @@ class PybrainAracMapper(object):
         proxy.init_output_gate_unsquashed(layer.outgatex);
         proxy.init_forget_gate_unsquashed(layer.forgetgatex);
         proxy.init_forget_gate_squashed(layer.forgetgate);
-        
+
         return proxy
 
     def _parametrized_connection_handler(self, con):
@@ -190,13 +204,13 @@ class PybrainAracMapper(object):
             proxy = self.map[con]
         except KeyError:
             klass = self.classmapping[type(con)]
-            proxy = klass(incoming, outgoing, 
+            proxy = klass(incoming, outgoing,
                           con.params, con.derivs,
                           con.inSliceFrom, con.inSliceTo,
                           con.outSliceFrom, con.outSliceTo)
             self.map[con] = proxy
         return proxy
-            
+
     def _identity_connection_handler(self, con):
         try:
             incoming = self.map[con.inmod]
@@ -206,38 +220,39 @@ class PybrainAracMapper(object):
         try:
             proxy = self.map[con]
         except KeyError:
-            proxy = cppbridge.IdentityConnection(incoming, outgoing, 
+            proxy = cppbridge.IdentityConnection(incoming, outgoing,
                                                  con.inSliceFrom, con.inSliceTo,
                                                  con.outSliceFrom, con.outSliceTo)
             self.map[con] = proxy
         return proxy
-        
+
     def handle(self, obj):
         handlers = {
             BiasUnit: self._bias_handler,
             FeedForwardNetwork: self._network_handler,
             FullConnection: self._parametrized_connection_handler,
-            GateLayer: self._simple_layer_handler, 
-            MultiplicationLayer: self._simple_layer_handler, 
+            GateLayer: self._simple_layer_handler,
+            MultiplicationLayer: self._simple_layer_handler,
             DoubleGateLayer: self._halfofoutput_layer_handler,
             SwitchLayer: self._halfofoutput_layer_handler,
-            IdentityConnection: self._identity_connection_handler, 
+            IdentityConnection: self._identity_connection_handler,
             LinearConnection: self._parametrized_connection_handler,
-            LinearLayer: self._simple_layer_handler, 
+            LinearLayer: self._simple_layer_handler,
             LSTMLayer: self._lstm_handler,
             MDLSTMLayer: self._mdlstm_handler,
             Network: self._network_handler,
             RecurrentNetwork: self._network_handler,
             SharedFullConnection: self._parametrized_connection_handler,
-            SigmoidLayer: self._simple_layer_handler, 
+            SigmoidLayer: self._simple_layer_handler,
             SoftmaxLayer: self._simple_layer_handler,
             TanhLayer: self._simple_layer_handler,
             _FeedForwardNetwork: self._network_handler,
             _RecurrentNetwork: self._network_handler,
+            _MixtureDensityNetwork: self._mdn_handler
         }
         self.map[obj] = handlers[type(obj)](obj)
         return self.map[obj]
-    
+
 
 class _Network(Network):
     """Adapter for the pybrain Network class.
@@ -257,7 +272,7 @@ class _Network(Network):
 
         # This is to keep references of arrays that shall not be collected.
         self._dontcollect = []
-        
+
     def copy(self):
         old_proxies = self.proxies
         self.proxies = PybrainAracMapper()
@@ -269,14 +284,14 @@ class _Network(Network):
     def _growBuffers(self):
         super(_Network, self)._growBuffers()
         self._rebuild()
-            
+
     def sortModules(self):
         super(_Network, self).sortModules()
         self._rebuild()
 
     def _rebuild(self):
         self.buildCStructure()
-        
+
     def reset(self):
         net_proxy = self.proxies.handle(self)
         net_proxy.clear()
@@ -307,7 +322,7 @@ class _Network(Network):
                 con_proxy = self.proxies.handle(connection)
                 if add:
                     net_proxy.add_connection(con_proxy)
-        
+
     def activate(self, inpt):
         inpt = scipy.asarray(inpt, dtype='float64')
         # We reshape here in order to make sure that the array has the correct
@@ -317,7 +332,7 @@ class _Network(Network):
         self.proxies[self].activate(inpt, result)
         self._dontcollect += [inpt, result]
         return result
-        
+
     def backActivate(self, outerr):
         if self.offset < 1:
           # TODO: better exception class here.
@@ -331,28 +346,28 @@ class _Network(Network):
         self._dontcollect += [outerr, inerror]
         return inerror
 
-        
+
 class _FeedForwardNetwork(FeedForwardNetworkComponent, _Network):
     """Pybrain adapter for an arac FeedForwardNetwork."""
 
     def __init__(self, *args, **kwargs):
-        _Network.__init__(self, *args, **kwargs)        
+        _Network.__init__(self, *args, **kwargs)
         FeedForwardNetworkComponent.__init__(self, *args, **kwargs)
-        
+
     def activate(self, inputbuffer):
         result = _Network.activate(self, inputbuffer)
         return result
-        
+
     def backActivate(self, outerr):
         result = _Network.backActivate(self, outerr)
         return result
 
-        
+
 class _RecurrentNetwork(RecurrentNetworkComponent, _Network):
     """Pybrain adapter for an arac RecurrentNetwork."""
 
     def __init__(self, *args, **kwargs):
-        _Network.__init__(self, *args, **kwargs)        
+        _Network.__init__(self, *args, **kwargs)
         RecurrentNetworkComponent.__init__(self, *args, **kwargs)
 
     def activate(self, inputbuffer):
@@ -381,8 +396,42 @@ class _RecurrentNetwork(RecurrentNetworkComponent, _Network):
             con_proxy.set_recurrent(1)
             if add:
                 net_proxy.add_connection(con_proxy)
-        # FIXME: This is actually done more often than necessary, basically all 
-        # recurrent connections are set to sequential already in the previous 
+        # FIXME: This is actually done more often than necessary, basically all
+        # recurrent connections are set to sequential already in the previous
         # loop.
         for component in self.proxies.map.values():
             component.set_mode(cppbridge.Component.Sequential)
+
+class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
+    """Pybrain adapter for an arac MDN."""
+    def __init__(self, M, c):
+        self.M = M
+        self.c = c
+        _FeedForwardNetwork.__init__(self)
+
+    def test(self):
+        self.proxies[self].test()
+
+    def getMixtureParams(self, y):
+        y = scipy.asarray(y, dtype='float64')
+        params = scipy.zeros(self.outdim)
+        self.proxies[self].get_mixture_params(y, params)
+        return (params[0:self.M],
+                params[self.M:2*self.M],
+                scipy.reshape(params[2*self.M:], (self.M, self.c)))
+
+    def _phi(self, T, mu, sigma):
+        dist = scipy.sum((T[None,:]-mu)**2, axis=1)
+        phi = (1.0 / (2*scipy.pi*sigma)**(0.5*self.c)) * scipy.exp(- 1.0 * dist / (2 * sigma))
+        return scipy.maximum(phi, scipy.finfo(float).eps)
+
+    def getOutputError(self, y, t):
+        y = scipy.asarray(y, dtype='float64')
+        t = scipy.asarray(t, dtype='float64')
+        outerr = scipy.zeros(self.outdim)
+        self.proxies[self].get_output_error(y, t, outerr)
+        return outerr
+
+    def getError(self, y, t):
+        return self.proxies[self].get_error(y, t)
+

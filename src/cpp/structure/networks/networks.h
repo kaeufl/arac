@@ -5,7 +5,7 @@
 #ifndef Arac_STRUCTURE_NETWORKS_INCLUDED
 #define Arac_STRUCTURE_NETWORKS_INCLUDED
 
-
+#include "mdn.h"
 #include "network.h"
 #include "basenetwork.h"
 #include "mdrnns/mdrnns.h"

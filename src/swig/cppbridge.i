@@ -1,7 +1,7 @@
 %module cppbridge
 %{
 #define SWIG_FILE_WITH_INIT
-    
+
 #include <iostream>
 #include <vector>
 #include <cassert>
@@ -39,7 +39,7 @@ PyObject* PyArray_1DFromDoublePointer(int dim, double* data_p)
     int* dims = new int[1];
     dims[0] = dim;
     // TODO: use python function that does not trigger a warning here.
-    PyObject* res_p = PyArray_FromDimsAndData(1, dims, PyArray_DOUBLE, 
+    PyObject* res_p = PyArray_FromDimsAndData(1, dims, PyArray_DOUBLE,
                                               (char*) data_p);
     delete[] dims;
     return res_p;
@@ -52,10 +52,10 @@ PyObject* PyArray_2DFromDoublePointer(int dim1, int dim2, double* data_p)
     dims[0] = dim1;
     dims[1] = dim2;
     // TODO: use python function that does not trigger a warning here.
-    PyObject* res_p = PyArray_FromDimsAndData(2, dims, PyArray_DOUBLE, 
+    PyObject* res_p = PyArray_FromDimsAndData(2, dims, PyArray_DOUBLE,
                                               (char*) data_p);
     delete[] dims;
-    return res_p; 
+    return res_p;
 }
 
 
@@ -78,13 +78,13 @@ namespace std
 %}
 
 
-%apply (double* INPLACE_ARRAY1, int DIM1) {(double* input_p, int inlength), 
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* input_p, int inlength),
                                            (double* output_p, int outlength)};
-%apply (double* INPLACE_ARRAY1, int DIM1) {(double* outerror_p, int outlength), 
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* outerror_p, int outlength),
                                            (double* inerror_p, int inlength)};
-%apply (double* INPLACE_ARRAY1, int DIM1) {(double* parameters_p, int parameter_size), 
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* parameters_p, int parameter_size),
                                            (double* derivatives_p, int derivative_size)};
-%apply (double* INPLACE_ARRAY1, int DIM1) {(double* outerror_p, int outlength), 
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* outerror_p, int outlength),
                                            (double* inerror_p, int inlength)};
 %apply (double* INPLACE_ARRAY2, int DIM1, int DIM2) {
     (double* content_p, int length, int rowsize)};
@@ -98,7 +98,7 @@ class Buffer
 };
 
 
-%extend Buffer 
+%extend Buffer
 {
     void append(double* row_p, int this_size)
     {
@@ -112,15 +112,15 @@ class Buffer
 };
 
 
-class Component 
+class Component
 {
-    public: 
-        enum Mode 
+    public:
+        enum Mode
         {
             Simple = 0,
             ErrorAgnostic = 1,
             Sequential = 2,
-            
+
             SequentialErrorAgnostic = 3,
         };
         virtual Component();
@@ -163,7 +163,7 @@ class Module : public Component
 };
 
 
-%extend Module 
+%extend Module
 {
     void init_input(double* content_p, int length, int rowsize)
     {
@@ -174,7 +174,7 @@ class Module : public Component
     {
         init_buffer($self->output(), content_p, length, rowsize);
     }
-    
+
     void init_inerror(double* content_p, int length, int rowsize)
     {
         init_buffer($self->inerror(), content_p, length, rowsize);
@@ -190,9 +190,9 @@ class Module : public Component
 %apply (double* INPLACE_ARRAY1, int DIM1) {(double* parameters_p, int n_parameters)};
 %apply (double* INPLACE_ARRAY1, int DIM1) {(double* derivatives_p, int n_derivatives)};
 
-class Parametrized 
+class Parametrized
 {
-    public: 
+    public:
         Parametrized();
         Parametrized(int size);
         int size();
@@ -207,7 +207,7 @@ class Parametrized
     {
         return PyArray_1DFromDoublePointer($self->size(), $self->get_parameters());
     }
-    
+
     void set_parameters(double* parameters_p, int n_parameters)
     {
         if (n_parameters != $self->size())
@@ -218,12 +218,12 @@ class Parametrized
         }
         $self->set_parameters(parameters_p);
     }
-    
+
     PyObject* get_derivatives()
     {
         return PyArray_1DFromDoublePointer($self->size(), $self->get_derivatives());
     }
-    
+
     void set_derivatives(double* derivatives_p, int n_derivatives)
     {
         if (n_derivatives != $self->size())
@@ -239,38 +239,38 @@ class Parametrized
 
 class Connection : public Component
 {
-    public: 
+    public:
         Connection(Module* incoming, Module* outgoing,
-                   int incomingstart, int incomingstop, 
+                   int incomingstart, int incomingstop,
                    int outgoingstart, int outgoingstop);
         Connection(Module* incoming, Module* outgoing);
         virtual ~Connection();
-        
+
         void set_incomingstart(int n);
         void set_incomingstop(int n);
         void set_outgoingstart(int n);
         void set_outgoingstop(int n);
-        
+
         int get_incomingstart();
         int get_incomingstop();
         int get_outgoingstart();
         int get_outgoingstop();
-        
+
         void set_recurrent(int recurrent);
         int get_recurrent();
-        
+
         Module* incoming();
         Module* outgoing();
 };
 
 
 %feature("notabstract") IdentityConnection;
-class IdentityConnection : public Connection 
+class IdentityConnection : public Connection
 {
     public:
         IdentityConnection(Module* incoming_p, Module* outgoing_p);
         IdentityConnection(Module* incoming_p, Module* outgoing_p,
-                           int incomingstart, int incomingstop, 
+                           int incomingstart, int incomingstop,
                            int outgoingstart, int outgoingstop);
         virtual ~IdentityConnection();
 };
@@ -377,32 +377,32 @@ class MdlstmLayer : public Module
     {
         init_buffer($self->input_squashed(), content_p, length, rowsize);
     }
-    
+
     void init_input_gate_squashed(double* content_p, int length, int rowsize)
     {
         init_buffer($self->input_gate_squashed(), content_p, length, rowsize);
     }
-    
+
     void init_input_gate_unsquashed(double* content_p, int length, int rowsize)
     {
         init_buffer($self->input_gate_unsquashed(), content_p, length, rowsize);
     }
-    
+
     void init_output_gate_squashed(double* content_p, int length, int rowsize)
     {
         init_buffer($self->output_gate_squashed(), content_p, length, rowsize);
     }
-    
+
     void init_output_gate_unsquashed(double* content_p, int length, int rowsize)
     {
         init_buffer($self->output_gate_unsquashed(), content_p, length, rowsize);
     }
-        
+
     void init_forget_gate_unsquashed(double* content_p, int length, int rowsize)
     {
         init_buffer($self->forget_gate_unsquashed(), content_p, length, rowsize);
     }
-    
+
     void init_forget_gate_squashed(double* content_p, int length, int rowsize)
     {
         init_buffer($self->forget_gate_squashed(), content_p, length, rowsize);
@@ -455,19 +455,19 @@ class TanhLayer : public Module
 
 class BaseNetwork : public Module
 {
-    
+
     public:
         BaseNetwork();
         virtual ~BaseNetwork();
-    
+
         virtual void activate(double* input_p, double* output_p);
         virtual void back_activate(double* outerror_p, double* inerror_p);
         virtual void forward();
-        
+
         std::vector<Parametrized*>& parametrizeds();
-        
+
         std::vector<BaseNetwork*>& networks();
-        
+
         virtual void sort() = 0;
         virtual void randomize();
 };
@@ -477,19 +477,19 @@ class BaseNetwork : public Module
 {
     // TODO: do not make the API request a output array, but return a PyObject*
     // instead.
-    
-    virtual void activate(double* input_p, int inlength, 
+
+    virtual void activate(double* input_p, int inlength,
                           double* output_p, int outlength)
     {
         // TODO: check bounds of in and output
         // if (inlength != $self->insize()) {
-        //     PyErr_Format(PyExc_ValueError, 
+        //     PyErr_Format(PyExc_ValueError,
         //                  "Input has wrong size: %d instead of %d",
         //                  inlength, $self->insize());
         //     return;
         // }
         // if (outlength != $self->outsize()) {
-        //     PyErr_Format(PyExc_ValueError, 
+        //     PyErr_Format(PyExc_ValueError,
         //                  "Output has wrong size: %d instead of %d",
         //                  outlength, $self->outsize());
         //     return;
@@ -498,7 +498,7 @@ class BaseNetwork : public Module
         $self->activate(input_p, output_p);
     }
 
-    virtual void back_activate(double* outerror_p, int outlength, 
+    virtual void back_activate(double* outerror_p, int outlength,
                                double* inerror_p, int inlength)
     {
         if (inlength != $self->insize() or outlength != $self->outsize()) {
@@ -514,120 +514,120 @@ class BaseNetwork : public Module
 %feature("notabstract") FullConnection;
 class FullConnection : public Connection, public Parametrized
 {
-    public: 
-        
+    public:
+
         FullConnection(Module* incoming_p, Module* outgoing_p);
         FullConnection(Module* incoming_p, Module* outgoing_p,
-                       int incomingstart, int incomingstop, 
+                       int incomingstart, int incomingstop,
                        int outgoingstart, int outgoingstop);
         FullConnection(Module* incoming_p, Module* outgoing_p,
                        double* parameters_p, double* derivatives_p,
-                       int incomingstart, int incomingstop, 
+                       int incomingstart, int incomingstop,
                        int outgoingstart, int outgoingstop);
         virtual ~FullConnection();
-        
-        %extend 
+
+        %extend
         {
             FullConnection(Module* incoming_p, Module* outgoing_p,
                            double* parameters_p, int parameter_size,
                            double* derivatives_p, int derivative_size,
-                           int incomingstart, int incomingstop, 
+                           int incomingstart, int incomingstop,
                            int outgoingstart, int outgoingstop)
-    
+
             {
                 int required_size = \
                     (incomingstop - incomingstart) * (outgoingstop - outgoingstart);
                 if (parameter_size != required_size)
                 {
-                    PyErr_Format(PyExc_ValueError, 
+                    PyErr_Format(PyExc_ValueError,
                          "Parameters have wrong size: should be %d instead of %d.",
                          required_size, parameter_size);
                     return 0;
                 }
                 if (derivative_size != required_size)
                 {
-                    PyErr_Format(PyExc_ValueError, 
+                    PyErr_Format(PyExc_ValueError,
                          "Derivatives have wrong size: should be %d instead of %d.",
                          required_size, parameter_size);
                     return 0;
                 }
-        
-                FullConnection* con = new FullConnection(incoming_p, outgoing_p, 
+
+                FullConnection* con = new FullConnection(incoming_p, outgoing_p,
                                                          parameters_p, derivatives_p,
                                                          incomingstart, incomingstop,
                                                          outgoingstart, outgoingstop);
                 return con;
             }
         }
-};    
+};
 
 
 %feature("notabstract") LinearConnection;
 class LinearConnection : public Connection, public Parametrized
 {
-    public: 
-        
+    public:
+
         LinearConnection(Module* incoming_p, Module* outgoing_p);
         LinearConnection(Module* incoming_p, Module* outgoing_p,
-                       int incomingstart, int incomingstop, 
+                       int incomingstart, int incomingstop,
                        int outgoingstart, int outgoingstop);
         LinearConnection(Module* incoming_p, Module* outgoing_p,
                        double* parameters_p, double* derivatives_p,
-                       int incomingstart, int incomingstop, 
+                       int incomingstart, int incomingstop,
                        int outgoingstart, int outgoingstop);
         virtual ~LinearConnection();
-        
+
         %extend
         {
             LinearConnection(Module* incoming_p, Module* outgoing_p,
                            double* parameters_p, int parameter_size,
                            double* derivatives_p, int derivative_size,
-                           int incomingstart, int incomingstop, 
+                           int incomingstart, int incomingstop,
                            int outgoingstart, int outgoingstop)
             {
                 int required_size = incomingstop - incomingstart;
                 if (outgoingstop - outgoingstart != required_size)
                 {
-                    PyErr_Format(PyExc_ValueError, 
+                    PyErr_Format(PyExc_ValueError,
                          "Slice sizes are not equal. (%d, %d).",
                          required_size, outgoingstop - outgoingstart);
                     return 0;
                 }
                 if (parameter_size != required_size)
                 {
-                    PyErr_Format(PyExc_ValueError, 
+                    PyErr_Format(PyExc_ValueError,
                          "Parameters have wrong size: should be %d instead of %d.",
                          required_size, parameter_size);
                     return 0;
                 }
                 if (derivative_size != incomingstop - incomingstart)
                 {
-                    PyErr_Format(PyExc_ValueError, 
+                    PyErr_Format(PyExc_ValueError,
                          "Derivatives have wrong size: should be %d instead of %d.",
                          required_size, parameter_size);
                     return 0;
                 }
-                
+
                 LinearConnection* con = new LinearConnection(
-                                            incoming_p, outgoing_p, 
+                                            incoming_p, outgoing_p,
                                             parameters_p, derivatives_p,
                                             incomingstart, incomingstop,
                                             outgoingstart, outgoingstop);
                 return con;
             }
         }
-};    
+};
 
 
 %feature("notabstract") BlockPermutationConnection;
 class BlockPermutationConnection : public Connection
 {
     public:
-        BlockPermutationConnection(Module* incoming_p, Module* outgoing_p, 
+        BlockPermutationConnection(Module* incoming_p, Module* outgoing_p,
                                    std::vector<int> sequence_shape,
                                    std::vector<int> block_shape);
         virtual ~BlockPermutationConnection();
-        
+
         std::vector<int>& permutation();
         void invert();
 };
@@ -637,10 +637,10 @@ class BlockPermutationConnection : public Connection
 class PermutationConnection : public Connection
 {
     public:
-        PermutationConnection(Module* incoming_p, Module* outgoing_p, 
+        PermutationConnection(Module* incoming_p, Module* outgoing_p,
                               std::vector<int> permutation);
         virtual ~PermutationConnection();
-        
+
         std::vector<int>& permutation();
         void invert();
 };
@@ -650,7 +650,7 @@ class PermutationConnection : public Connection
 class ConvolveConnection : public Connection, public Parametrized
 {
     public:
-        ConvolveConnection(Module* incoming_p, Module* outgoing_p, 
+        ConvolveConnection(Module* incoming_p, Module* outgoing_p,
                               int inchunk, int outchunk);
         ~ConvolveConnection();
 };
@@ -676,8 +676,8 @@ class OutConvolveConnection : public Connection, public Parametrized
 %feature("notabstract") Network;
 class Network : public BaseNetwork
 {
-    public: 
-        
+    public:
+
         enum ModuleType {
             Simple = 0,
             InputModule = 1,
@@ -692,9 +692,9 @@ class Network : public BaseNetwork
         void add_connection(Connection* con_p);
         virtual void sort();
 
-};        
-        
-        
+};
+
+
 class BaseMdrnn : public BaseNetwork {};
 
 
@@ -704,11 +704,11 @@ class SigmoidMdrnn : public BaseMdrnn
     public:
         SigmoidMdrnn(int timedim, int hiddensize);
         ~SigmoidMdrnn();
-        
+
         // TODO: remove this; sorting should be implicit, but does not work for
         // mdrnns somehow.
         virtual void sort();
-        
+
         void set_sequence_shape(int dim, int val);
         int get_sequence_shape(int dim);
         int sequencelength();
@@ -723,11 +723,11 @@ class TanhMdrnn : public BaseMdrnn
     public:
         TanhMdrnn(int timedim, int hiddensize);
         ~TanhMdrnn();
-        
+
         // TODO: remove this; sorting should be implicit, but does not work for
         // mdrnns somehow.
         virtual void sort();
-        
+
         void set_sequence_shape(int dim, int val);
         int get_sequence_shape(int dim);
         int sequencelength();
@@ -742,11 +742,11 @@ class LinearMdrnn : public BaseMdrnn
     public:
         LinearMdrnn(int timedim, int hiddensize);
         ~LinearMdrnn();
-        
+
         // TODO: remove this; sorting should be implicit, but does not work for
         // mdrnns somehow.
         virtual void sort();
-        
+
         void set_sequence_shape(int dim, int val);
         int get_sequence_shape(int dim);
         int sequencelength();
@@ -761,11 +761,11 @@ class MdlstmMdrnn : public BaseMdrnn
     public:
          MdlstmMdrnn(int timedim, int hiddensize);
         ~MdlstmMdrnn();
-        
+
         // TODO: remove this; sorting should be implicit, but does not work for
         // mdrnns somehow.
         virtual void sort();
-        
+
         void set_sequence_shape(int dim, int val);
         int get_sequence_shape(int dim);
         int sequencelength();
@@ -773,8 +773,45 @@ class MdlstmMdrnn : public BaseMdrnn
         int get_block_shape(int dim);
 };
 
-        
-%apply (double* INPLACE_ARRAY1, int DIM1) {(double* sample_p, int samplelength), 
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* output_p, int outsize),
+                                           (double* params_p, int paramsize)};
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* output_p, int outputsize),
+                                           (double* target_p, int targetsize)};
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* output_p, int outputsize),
+                                           (double* target_p, int targetsize),
+                                           (double* outputerror_p, int outputerrorsize)};
+
+%feature("notabstract") MDN;
+class MDN : public Network
+{
+    public:
+    	MDN(int M, int c);
+        void test();
+        double get_error(double* output_p, int outputsize,
+        				 double* target_p, int targetsize);
+        void get_mixture_params(double* output_p, int outsize,
+        						double* params_p, int paramsize);
+		void get_output_error(double* output_p, int outputsize,
+							  double* target_p, int targetsize,
+							  double* outputerror_p);
+        //void softmax(const double* x_p, double* y_p, int len);
+};
+
+%extend MDN
+{
+    void get_output_error(double* output_p, int outputsize,
+						  double* target_p, int targetsize,
+						  double* outputerror_p, int outputerrorsize)
+    {
+        // TODO: check array dimensions
+        $self->get_output_error(output_p, outputsize,
+						  		target_p, targetsize,
+						  		outputerror_p);
+    }
+};
+
+
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* sample_p, int samplelength),
                                            (double* target_p, int targetlength)};
 %apply (double* INPLACE_ARRAY1, int DIM1) {(double* importance_p, int importancelength)};
 
@@ -784,7 +821,7 @@ class SupervisedSimpleDataset
    public:
        SupervisedSimpleDataset(int samplesize, int targetsize);
        ~SupervisedSimpleDataset();
-       
+
        virtual int size();
        int samplesize();
        int targetsize();
@@ -796,7 +833,7 @@ class SupervisedSimpleDataset
 
 %extend SupervisedSimpleDataset
 {
-    void append(double* sample_p, int samplelength, 
+    void append(double* sample_p, int samplelength,
                 double* target_p, int targetlength)
     {
         if (samplelength != $self->samplesize() or \
@@ -810,7 +847,7 @@ class SupervisedSimpleDataset
 
     void set_importance(int index, double* importance_p, int importancelength)
     {
-        if (importancelength != $self->targetsize()) 
+        if (importancelength != $self->targetsize())
         {
             PyErr_Format(PyExc_ValueError, "Arrays of lengths %d given",
                          importancelength);
@@ -818,19 +855,19 @@ class SupervisedSimpleDataset
         }
         $self->set_importance(index, importance_p);
     }
-    
+
     PyObject* sample(int index)
     {
         SupervisedSimpleDataset& ds = *($self);
-        return PyArray_1DFromDoublePointer($self->samplesize(), ds[index].first);        
+        return PyArray_1DFromDoublePointer($self->samplesize(), ds[index].first);
     }
-    
+
     PyObject* target(int index)
     {
         SupervisedSimpleDataset& ds = *($self);
         return PyArray_1DFromDoublePointer($self->targetsize(), ds[index].second);
     }
-    
+
     PyObject* importance(int index)
     {
         SupervisedSimpleDataset& ds = *($self);
@@ -850,7 +887,7 @@ class SupervisedSemiSequentialDataset
    public:
        SupervisedSemiSequentialDataset(int samplesize, int targetsize);
        ~SupervisedSemiSequentialDataset();
-       
+
        virtual int size();
        int samplesize();
        int targetsize();
@@ -859,7 +896,7 @@ class SupervisedSemiSequentialDataset
 
 %extend SupervisedSemiSequentialDataset
 {
-    void append(double* sequence_p, int samplelength, int sequencelength, 
+    void append(double* sequence_p, int samplelength, int sequencelength,
                 double* target_p, int targetlength)
     {
         if (samplelength != $self->samplesize() or \
@@ -871,14 +908,14 @@ class SupervisedSemiSequentialDataset
         Sequence seq(sequencelength, samplelength, sequence_p);
         $self->append(seq, target_p);
     }
-    
+
     PyObject* sample(int index)
     {
         SupervisedSemiSequentialDataset& ds = *($self);
         Sequence& seq = ds[index].first;
         return PyArray_2DFromDoublePointer(seq.itemsize(), seq.length(), seq[0]);
     }
-    
+
     PyObject* target(int index)
     {
         SupervisedSemiSequentialDataset& ds = *($self);
@@ -888,7 +925,7 @@ class SupervisedSemiSequentialDataset
 
 
 %apply (double* INPLACE_ARRAY2, int DIM1, int DIM2) {
-    (double* samplesequence_p, int samplelength, int samplesequencelength), 
+    (double* samplesequence_p, int samplelength, int samplesequencelength),
     (double* targetsequence_p, int targetlength, int targetsequencelength)
 };
 
@@ -898,7 +935,7 @@ class SupervisedSequentialDataset
    public:
        SupervisedSequentialDataset(int samplesize, int targetsize);
        ~SupervisedSequentialDataset();
-       
+
        virtual int size();
        int samplesize();
        int targetsize();
@@ -907,7 +944,7 @@ class SupervisedSequentialDataset
 
 %extend SupervisedSequentialDataset
 {
-    void append(double* samplesequence_p, int samplelength, int samplesequencelength, 
+    void append(double* samplesequence_p, int samplelength, int samplesequencelength,
                 double* targetsequence_p, int targetlength, int targetsequencelength)
     {
         if (samplelength != $self->samplesize() or targetlength != $self->targetsize()) {
@@ -916,16 +953,16 @@ class SupervisedSequentialDataset
             return;
         }
         if (samplesequencelength != targetsequencelength) {
-            PyErr_Format(PyExc_ValueError, 
+            PyErr_Format(PyExc_ValueError,
                 "Sequences have to be of same length.");
             return;
         }
-        
+
         Sequence sampleseq(samplesequencelength, samplelength, samplesequence_p);
         Sequence targetseq(targetsequencelength, targetlength, targetsequence_p);
         $self->append(sampleseq, targetseq);
     }
-    
+
     PyObject* sample(int index)
     {
         SupervisedSequentialDataset& ds = *($self);
@@ -948,18 +985,18 @@ class SimpleBackprop
     public:
         SimpleBackprop(BaseNetwork& network, SupervisedSimpleDataset& ds);
         virtual ~SimpleBackprop();
-    
-        void train_stochastic();    
-        void train_stochastic_batch();    
+
+        void train_stochastic();
+        void train_stochastic_batch();
 
         double loss();
-        
+
         double learningrate();
         void set_learningrate(const double value);
-        
+
         double momentum();
         void set_momentum(const double value);
-        
+
         BaseNetwork& network();
         SupervisedSimpleDataset& dataset();
 };
@@ -967,9 +1004,9 @@ class SimpleBackprop
 
 %extend SimpleBackprop
 {
-    PyObject* error() 
+    PyObject* error()
     {
-        return PyArray_1DFromDoublePointer($self->network().outsize(), 
+        return PyArray_1DFromDoublePointer($self->network().outsize(),
                                            $self->error());
     }
 }
@@ -979,18 +1016,18 @@ class SemiSequentialBackprop
 {
     public:
 
-        SemiSequentialBackprop(BaseNetwork& network, 
+        SemiSequentialBackprop(BaseNetwork& network,
                                SupervisedSemiSequentialDataset& ds);
         ~SemiSequentialBackprop();
-    
-        void train_stochastic();    
-        
+
+        void train_stochastic();
+
         double learningrate();
         void set_learningrate(const double value);
-        
+
         double momentum();
         void set_momentum(const double value);
-        
+
         BaseNetwork& network();
         SupervisedSemiSequentialDataset& dataset();
 };
@@ -998,9 +1035,9 @@ class SemiSequentialBackprop
 
 %extend SemiSequentialBackprop
 {
-    PyObject* lasterror() 
+    PyObject* lasterror()
     {
-        return PyArray_1DFromDoublePointer($self->dataset().targetsize(), 
+        return PyArray_1DFromDoublePointer($self->dataset().targetsize(),
                                            $self->error());
     }
 }
@@ -1011,15 +1048,15 @@ class SequentialBackprop
     public:
         SequentialBackprop(BaseNetwork& network, SupervisedSequentialDataset& ds);
         ~SequentialBackprop();
-    
+
         void train_stochastic();
-        
+
         double learningrate();
         void set_learningrate(const double value);
-        
+
         double momentum();
         void set_momentum(const double value);
-        
+
         BaseNetwork& network();
         SupervisedSequentialDataset& dataset();
 };
