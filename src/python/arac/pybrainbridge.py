@@ -404,10 +404,14 @@ class _RecurrentNetwork(RecurrentNetworkComponent, _Network):
 
 class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
     """Pybrain adapter for an arac MDN."""
-    def __init__(self, M, c):
+    def __init__(self, M, c, *args, **kwargs):
+        _FeedForwardNetwork.__init__(self, *args, **kwargs)
         self.M = M
         self.c = c
-        _FeedForwardNetwork.__init__(self)
+        # we have to include the additional arguments in argdict in order to
+        # have XML serialization work properly
+        self.argdict['M'] = M
+        self.argdict['c'] = c
 
     def test(self):
         self.proxies[self].test()
