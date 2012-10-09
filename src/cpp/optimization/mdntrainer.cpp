@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <iostream>
-#include <gsl/gsl_blas.h>
+#include <omp.h>
+//#include <gsl/gsl_blas.h>
 #include "mdntrainer.h"
 #include "../utilities/alglib/stdafx.h"
 #include "../utilities/alglib/optimization.h"
@@ -203,20 +204,31 @@ void MDNTrainer::f_df(const real_1d_array &x, double &func, real_1d_array &grad,
 
     //func = 0;
     double err = 0.0;
-    std::cout << "before" << std::endl;
+
     int k = 0;
-    #pragma omp parallel for private(k) shared(err) 
+
+//    printf("Orig trainer at %p\n", trainer);
+//
+//	#pragma omp parallel firstprivate(trainer)
+//    {
+//    	MDNTrainer ctrainer = *trainer;
+//    	printf("Thread %d, trainer %p\n", omp_get_thread_num(), trainer);
+//    	printf("Thread %d, trainer->network() %p\n", omp_get_thread_num(), &trainer->network());
+//    	printf("Thread %d, ctrainer (local copy) %p\n", omp_get_thread_num(), &ctrainer);
+//    	printf("Thread %d, ctrainer->network() %p\n", omp_get_thread_num(), &ctrainer.network());
+//    }
+
     for (k=0; k < trainer->dataset().size(); ++k)
     {
         y = trainer->network().activate(trainer->dataset()[k].first);
-        //err += trainer->network().get_error(y, trainer->dataset().targetsize(),
-        //    trainer->dataset()[k].second, trainer->dataset().targetsize());
-        //trainer->network().get_output_error(y, trainer->dataset().targetsize(),
-        //    trainer->dataset()[k].second, trainer->dataset().targetsize(),
-        //   output_err);
-        //trainer->network().back_activate(output_err);
+        err += trainer->network().get_error(y, trainer->dataset().targetsize(),
+            trainer->dataset()[k].second, trainer->dataset().targetsize());
+        trainer->network().get_output_error(y, trainer->dataset().targetsize(),
+            trainer->dataset()[k].second, trainer->dataset().targetsize(),
+           output_err);
+        trainer->network().back_activate(output_err);
     }
-    std::cout << "after" << std::endl;
+
     func = err;
     trainer->get_derivs(grad);
     //trainer->get_derivs(derivs);
