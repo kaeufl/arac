@@ -1,0 +1,59 @@
+// added Sept 2012 by Paul Kaeufl, <p.j.kaufl@uu.nl>
+// provides a trainer for mixture density networks
+
+#ifndef Arac_OPTIMIZER_MDNTRAINER_INCLUDED
+#define Arac_OPTIMIZER_MDNTRAINER_INCLUDED
+
+#include "../structure/networks/mdn.h"
+#include "../datasets/datasets.h"
+#include <gsl/gsl_multimin.h>
+
+using arac::structure::networks::MDN;
+using arac::datasets::SupervisedDataset;
+
+namespace arac {
+namespace optimization {
+
+class MDNTrainer 
+{
+    public:
+        MDNTrainer(MDN& network,
+                   SupervisedDataset<double*, double*>& dataset);
+        ~MDNTrainer();
+
+        ///
+        /// Return a reference to the network of the optimizer.
+        ///
+        MDN& network();
+        
+        ///
+        /// Return a reference to the dataset of the optimizer.
+        ///
+        SupervisedDataset<double*, double*>& dataset();
+
+        ///
+        /// Train network for one iteration.
+        ///
+        void train();
+
+    protected:
+        ///
+        /// Network to be optimized
+        ///
+        MDN& _network;
+
+        ///
+        /// Dataset the network is to be optimized upon.
+        ///
+        SupervisedDataset<double*, double*>& _dataset;
+
+    private:
+        gsl_multimin_fdfminimizer* _optimizer;
+        int _n_params;
+
+};
+
+}
+}
+
+#endif

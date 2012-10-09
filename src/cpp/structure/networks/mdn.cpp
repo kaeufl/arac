@@ -85,7 +85,7 @@ MDN::softmax(const double* x_p, double* y_p, int len)
 	double sum = 0;
 
 	for (int i = 0; i < len; i++) {
-		// Clip of input argument if its to extreme to avoid NaNs and inf as a
+		// Clip input argument if its to extreme to avoid NaNs and inf as a
 		// result of exp().
 		double inpt;
 		inpt = x_p[i] < -500 ? -500 : x_p[i];

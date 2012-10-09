@@ -8,6 +8,6 @@
 
 #include "backprop.h"
 #include "descent/descent.h"
-#include "mdntrainer.h"
+
 
 #endif

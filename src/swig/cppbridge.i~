@@ -1071,7 +1071,6 @@ class MDNTrainer
 
         MDN& network();
         SupervisedSimpleDataset& dataset();
-        int train();
-        int train(int epochs);
-        int get_terminationtype();
+        void train();
 };
+

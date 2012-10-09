@@ -1,0 +1,4 @@
+eclipse.preferences.version=1
+encoding//src/python/arac/pybrainbridge.py=utf-8
+encoding//src/python/arac/tests/test_cppbridge.py=utf-8
+encoding//src/python/arac/tests/test_pybrainbridge.py=utf-8
