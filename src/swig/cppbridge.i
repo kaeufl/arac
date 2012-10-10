@@ -1067,6 +1067,7 @@ class MDNTrainer
 {
     public:
         MDNTrainer(MDN& network, SupervisedSimpleDataset& ds);
+        MDNTrainer(MDN& network, SupervisedSimpleDataset& ds, SupervisedSimpleDataset& testset);
         ~MDNTrainer();
 
         MDN& network();
@@ -1074,4 +1075,8 @@ class MDNTrainer
         int train();
         int train(int epochs);
         int get_terminationtype();
+        std::vector<double> getErrorTrace();
+        std::vector<double> getTestErrorTrace();
+        std::vector<double> getOptimalParams();
+        int getOptimalEpoch();
 };

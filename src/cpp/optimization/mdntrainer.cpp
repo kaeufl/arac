@@ -15,43 +15,71 @@ using namespace alglib;
 MDNTrainer::MDNTrainer(MDN& network,
                        SupervisedDataset<double*, double*>& dataset) :
     _network(network),
-    _dataset(dataset) 
+    _dataset(&dataset),
+    _testset(0),
+    _errors(),
+    _test_errors(),
+    _optimal_x(),
+    _optimal_it(0),
+    _optimal_err(0)
 {
-    _n_params = 0;
-    _it_count = 0;
-    real_1d_array x;
+    initTrainer();
+}
 
-    std::vector<Parametrized*>::iterator param_iter;
-    for (param_iter = network.parametrizeds().begin();
-        param_iter != network.parametrizeds().end();
-        param_iter++)
-    {
-       _n_params += (*param_iter)->size();
-    }
-
-    x.setlength(_n_params);
-    get_params(x);
-
-    try
-    {
-       minlbfgscreate(_n_params, 5, x, _lbfgsstate);
-       minlbfgssetxrep(_lbfgsstate, true);
-    }
-    catch (ap_error& e)
-    {
-       std::cout << e.msg << std::endl;
-    }
-
-    // set custom signal handler
-    struct sigaction sigIntHandler;
-
-    sigIntHandler.sa_handler = MDNTrainer::abort_handler;
-    sigemptyset(&sigIntHandler.sa_mask);
-    sigIntHandler.sa_flags = 0;
-    sigaction(SIGINT, &sigIntHandler, NULL);
+MDNTrainer::MDNTrainer(MDN& network,
+						  SupervisedDataset<double*, double*>& dataset,
+						  SupervisedDataset<double*, double*>& testset) :
+	_network(network),
+	_dataset(&dataset),
+	_testset(&testset),
+    _errors(),
+    _test_errors(),
+    _optimal_x(),
+	_optimal_it(0),
+	_optimal_err(0)
+{
+	initTrainer();
 }
 
 MDNTrainer::~MDNTrainer() {}
+
+void MDNTrainer::initTrainer()
+{
+	_n_params = 0;
+	_it_count = 0;
+	real_1d_array x;
+
+	std::vector<Parametrized*>::iterator param_iter;
+	for (param_iter = network().parametrizeds().begin();
+		param_iter != network().parametrizeds().end();
+		param_iter++)
+	{
+	   _n_params += (*param_iter)->size();
+	}
+
+	_optimal_x.resize(_n_params);
+
+	x.setlength(_n_params);
+	get_params(x);
+
+	try
+	{
+	   minlbfgscreate(_n_params, 5, x, _lbfgsstate);
+	   minlbfgssetxrep(_lbfgsstate, true);
+	}
+	catch (ap_error& e)
+	{
+	   std::cout << e.msg << std::endl;
+	}
+
+	// set custom signal handler
+	struct sigaction sigIntHandler;
+
+	sigIntHandler.sa_handler = MDNTrainer::abort_handler;
+	sigemptyset(&sigIntHandler.sa_mask);
+	sigIntHandler.sa_flags = 0;
+	sigaction(SIGINT, &sigIntHandler, NULL);
+}
 
 MDN& MDNTrainer::network()
 {
@@ -60,11 +88,19 @@ MDN& MDNTrainer::network()
 
 SupervisedDataset<double*, double*>& MDNTrainer::dataset()
 {
-    return _dataset;
+    return *_dataset;
+}
+
+SupervisedDataset<double*, double*>& MDNTrainer::testset()
+{
+	return *_testset;
 }
 
 int MDNTrainer::train(int epochs)
 {
+	_errors.reserve(_errors.size()+epochs);
+	_test_errors.reserve(_test_errors.size()+epochs);
+
     _report_every = epochs >= 100 ? epochs / 10 : 1;
 
     try
@@ -98,12 +134,25 @@ int MDNTrainer::train(int epochs)
     }
     catch (MDNTrainerAbortError& e)
     {
+    	// If a test set was provided, set parameters to the set of parameters
+		// where the minimum test set error has occured.
+    	if (_testset != 0) {
+			set_params(_optimal_x);
+		}
         return -1;
     }
-    real_1d_array param_new;
-    param_new.setlength(_n_params);
-    minlbfgsresults(_lbfgsstate, param_new, _lbfgsrep);
-    set_params(param_new);
+
+    // If a test set was provided, set parameters to the set of parameters
+	// where the minimum test set error has occured.
+    if (_testset != 0) {
+    	set_params(_optimal_x);
+    } else {
+    	real_1d_array param_new;
+		param_new.setlength(_n_params);
+		minlbfgsresults(_lbfgsstate, param_new, _lbfgsrep);
+		set_params(param_new);
+    }
+
 
     _terminationtype = _lbfgsrep.terminationtype;
     return _terminationtype;
@@ -112,6 +161,22 @@ int MDNTrainer::train(int epochs)
 int MDNTrainer::train()
 {
     return train(1);
+}
+
+void MDNTrainer::get_params(std::vector<double>& x)
+{
+    int idx = 0;
+    std::vector<Parametrized*>::iterator param_iter;
+    //std::vector<double> tmp(_n_params);
+    for (param_iter = network().parametrizeds().begin();
+         param_iter != network().parametrizeds().end();
+         ++param_iter)
+    {
+        std::copy((*param_iter)->get_parameters(),
+                  (*param_iter)->get_parameters()+(*param_iter)->size(),
+                  x.begin()+idx);
+        idx += (*param_iter)->size();
+    }
 }
 
 void MDNTrainer::get_params(real_1d_array& x)
@@ -143,6 +208,22 @@ void MDNTrainer::set_params(const real_1d_array& x)
     {
         parameters = (*param_iter)->get_parameters();
         std::copy(tmp+idx, tmp+idx+(*param_iter)->size(),
+                  parameters);
+        idx += (*param_iter)->size();
+    }
+}
+
+void MDNTrainer::set_params(const std::vector<double>& x)
+{
+    double* parameters;
+    int idx=0;
+    std::vector<Parametrized*>::iterator param_iter;
+    for (param_iter = network().parametrizeds().begin();
+         param_iter != network().parametrizeds().end();
+         ++param_iter)
+    {
+        parameters = (*param_iter)->get_parameters();
+        std::copy(x.begin()+idx, x.begin()+idx+(*param_iter)->size(),
                   parameters);
         idx += (*param_iter)->size();
     }
@@ -265,10 +346,34 @@ void MDNTrainer::report(const real_1d_array &x, double func, void *ptr)
 {
     MDNTrainer* trainer = (MDNTrainer *)ptr;
     trainer->_it_count++;
+    trainer->_errors.push_back(func/trainer->dataset().size());
+    double test_err = 0.0;
+    if (trainer->_testset != 0) {
+    	const double* y;
+    	for (int k=0; k < trainer->testset().size(); ++k) {
+			y = trainer->network().activate(trainer->testset()[k].first);
+			test_err += trainer->network().get_error(
+				y, trainer->testset().targetsize(),
+				trainer->testset()[k].second,
+				trainer->testset().targetsize()
+			);
+    	}
+    	trainer->_test_errors.push_back(test_err/trainer->testset().size());
+
+    	// keep track of early stopping information
+    	if (test_err < trainer->_optimal_err or trainer->_optimal_err == 0) {
+    		trainer->_optimal_err = test_err;
+    		trainer->_optimal_it = trainer->_it_count;
+    		trainer->get_params(trainer->_optimal_x);
+    	}
+    }
     if ((trainer->_it_count % trainer->_report_every) == 0) {
         std::cout << "Epoch " << trainer->_it_count
-            << ", E=" << (func/trainer->dataset().size())
-            << std::endl;
+            << ", E=" << trainer->_errors.back();
+        if (test_err != 0.0) {
+        	std::cout << ", E_test=" << trainer->_test_errors.back();
+        }
+        std::cout << std::endl;
     }
 }
 
@@ -280,4 +385,24 @@ int MDNTrainer::get_terminationtype()
 void MDNTrainer::abort_handler(int s)
 {
     throw MDNTrainerAbortError();
+}
+
+std::vector<double> MDNTrainer::getErrorTrace()
+{
+	return _errors;
+}
+
+std::vector<double> MDNTrainer::getTestErrorTrace()
+{
+	return _test_errors;
+}
+
+std::vector<double> MDNTrainer::getOptimalParams()
+{
+	return _optimal_x;
+}
+
+int MDNTrainer::getOptimalEpoch()
+{
+	return _optimal_it;
 }

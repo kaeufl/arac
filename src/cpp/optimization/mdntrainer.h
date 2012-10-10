@@ -27,7 +27,10 @@ class MDNTrainer
         int _n_params;
 
         MDNTrainer(MDN& network,
-                   SupervisedDataset<double*, double*>& dataset);
+                    SupervisedDataset<double*, double*>& dataset);
+        MDNTrainer(MDN& network,
+					SupervisedDataset<double*, double*>& dataset,
+					SupervisedDataset<double*, double*>& testset);
         ~MDNTrainer();
 
         ///
@@ -41,7 +44,15 @@ class MDNTrainer
         SupervisedDataset<double*, double*>& dataset();
 
         ///
+		/// Return a reference to the (optional) test set.
+		///
+		SupervisedDataset<double*, double*>& testset();
+
+        ///
         /// Train network for 'epochs' iterations.
+		/// Note: if a test has been provided during object initialization,
+		/// the attached module parameters are set to the optimal parameters with
+		/// respect to the test set minimum.
         ///
         int train(int epochs);
         int train();
@@ -55,11 +66,13 @@ class MDNTrainer
         /// Get parameters of attached network.
         ///
         void get_params(real_1d_array& x);
+        void get_params(std::vector<double>& x);
 
         ///
         /// Set parameters of attached network.
         ///
         void set_params(const real_1d_array& x);
+        void set_params(const std::vector<double>& x);
 
         ///
         /// Get derivatives of attached network.
@@ -72,6 +85,23 @@ class MDNTrainer
         ///
         int get_terminationtype();
 
+        ///
+        /// Return the error (test set error) trace for all epochs performed so far.
+        ///
+        std::vector<double> getErrorTrace();
+        std::vector<double> getTestErrorTrace();
+
+        ///
+		/// Return the set of parameters for which the minimum test set error occured
+		///
+        std::vector<double> getOptimalParams();
+
+        ///
+		/// Return the epoch number at which the minimum test set error occured
+		///
+        int getOptimalEpoch();
+
+
     protected:
         ///
         /// Network to be optimized
@@ -81,15 +111,27 @@ class MDNTrainer
         ///
         /// Dataset the network is to be optimized upon.
         ///
-        SupervisedDataset<double*, double*>& _dataset;
+        SupervisedDataset<double*, double*>* _dataset;
+
+        ///
+        /// Test set (optional)
+        ///
+        SupervisedDataset<double*, double*>* _testset;
 
     private:
+        void initTrainer();
+
         minlbfgsstate _lbfgsstate;
         minlbfgsreport _lbfgsrep;
         bool _new_run;
         int _it_count;
         int _report_every;
         int _terminationtype;
+        std::vector<double> _errors;
+        std::vector<double> _test_errors;
+        std::vector<double> _optimal_x;
+        int _optimal_it;
+        double _optimal_err;
 
         static const double _epsg = 0.0000000001;
         static const double _epsf = 0;
