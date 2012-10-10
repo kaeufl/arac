@@ -207,16 +207,30 @@ void MDNTrainer::f_df(const real_1d_array &x, double &func, real_1d_array &grad,
 
     int k = 0;
 
-//    printf("Orig trainer at %p\n", trainer);
-//
-//	#pragma omp parallel firstprivate(trainer)
-//    {
-//    	MDNTrainer ctrainer = *trainer;
-//    	printf("Thread %d, trainer %p\n", omp_get_thread_num(), trainer);
-//    	printf("Thread %d, trainer->network() %p\n", omp_get_thread_num(), &trainer->network());
-//    	printf("Thread %d, ctrainer (local copy) %p\n", omp_get_thread_num(), &ctrainer);
-//    	printf("Thread %d, ctrainer->network() %p\n", omp_get_thread_num(), &ctrainer.network());
-//    }
+    /*
+    printf("Orig trainer at %p\n", trainer);
+    printf("Orig network at %p\n", &trainer->network());
+    printf("Orig inp buffer at %p\n", &trainer->network().input());
+    printf("Orig outp buffer at %p\n", &trainer->network().output());
+    printf("Orig inerr buffer at %p\n", &trainer->network().inerror());
+    printf("Orig outerr buffer at %p\n", &trainer->network().outerror());
+
+	#pragma omp parallel firstprivate(trainer)
+    {
+    	MDNTrainer ctrainer = *trainer;
+    	MDN cnetwork = trainer->network();
+
+    	printf("Thread %d, network %p\n", omp_get_thread_num(), &cnetwork);
+    	printf("Thread %d, inp buffer %p\n", omp_get_thread_num(), &cnetwork.input());
+    	printf("Thread %d, out buffer %p\n", omp_get_thread_num(), &cnetwork.output());
+    	printf("Thread %d, inerr buffer %p\n", omp_get_thread_num(), &cnetwork.inerror());
+    	printf("Thread %d, outerr buffer %p\n", omp_get_thread_num(), &cnetwork.outerror());
+    	//printf("Thread %d, trainer %p\n", omp_get_thread_num(), trainer);
+    	//printf("Thread %d, trainer->network() %p\n", omp_get_thread_num(), &trainer->network());
+    	//printf("Thread %d, ctrainer (local copy) %p\n", omp_get_thread_num(), &ctrainer);
+    	//printf("Thread %d, ctrainer->network() %p\n", omp_get_thread_num(), &ctrainer.network());
+    }
+    */
 
     for (k=0; k < trainer->dataset().size(); ++k)
     {
