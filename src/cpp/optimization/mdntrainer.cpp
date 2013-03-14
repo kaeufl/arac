@@ -1,4 +1,6 @@
-#include <signal.h>
+#include "mdntrainer.h"
+
+/*#include <signal.h>
 #include <iostream>
 #include <omp.h>
 //#include <gsl/gsl_blas.h>
@@ -12,7 +14,8 @@ using arac::structure::networks::MDN;
 using arac::structure::Parametrized;
 using namespace alglib;
 
-MDNTrainer::MDNTrainer(MDN& network,
+template<typename NetworkType>
+MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
                        SupervisedDataset<double*, double*>& dataset) :
     _network(network),
     _dataset(&dataset),
@@ -26,7 +29,8 @@ MDNTrainer::MDNTrainer(MDN& network,
     initTrainer();
 }
 
-MDNTrainer::MDNTrainer(MDN& network,
+template<typename NetworkType>
+MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
 						  SupervisedDataset<double*, double*>& dataset,
 						  SupervisedDataset<double*, double*>& testset) :
 	_network(network),
@@ -41,9 +45,11 @@ MDNTrainer::MDNTrainer(MDN& network,
 	initTrainer();
 }
 
-MDNTrainer::~MDNTrainer() {}
+template<typename NetworkType>
+MDNTrainer<NetworkType>::~MDNTrainer() {}
 
-void MDNTrainer::initTrainer()
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::initTrainer()
 {
 	_n_params = 0;
 	_it_count = 0;
@@ -72,34 +78,39 @@ void MDNTrainer::initTrainer()
 	   std::cout << e.msg << std::endl;
 	}
 
-	// set custom signal handler
-	struct sigaction sigIntHandler;
+	}
 
-	sigIntHandler.sa_handler = MDNTrainer::abort_handler;
-	sigemptyset(&sigIntHandler.sa_mask);
-	sigIntHandler.sa_flags = 0;
-	sigaction(SIGINT, &sigIntHandler, NULL);
-}
-
-MDN& MDNTrainer::network()
+template<typename NetworkType>
+NetworkType& MDNTrainer<NetworkType>::network()
 {
     return _network;
 }
 
-SupervisedDataset<double*, double*>& MDNTrainer::dataset()
+template<typename NetworkType>
+SupervisedDataset<double*, double*>& MDNTrainer<NetworkType>::dataset()
 {
     return *_dataset;
 }
 
-SupervisedDataset<double*, double*>& MDNTrainer::testset()
+template<typename NetworkType>
+SupervisedDataset<double*, double*>& MDNTrainer<NetworkType>::testset()
 {
 	return *_testset;
 }
 
-int MDNTrainer::train(int epochs)
+template<typename NetworkType>
+int MDNTrainer<NetworkType>::train(int epochs)
 {
-	_errors.reserve(_errors.size()+epochs);
-	_test_errors.reserve(_test_errors.size()+epochs);
+    // set custom signal handler
+    struct sigaction sigIntHandler;
+
+    sigIntHandler.sa_handler = MDNTrainer<NetworkType>::abort_handler;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = SA_RESETHAND;
+    sigaction(SIGINT, &sigIntHandler, NULL);
+
+    _errors.reserve(_errors.size()+epochs);
+    _test_errors.reserve(_test_errors.size()+epochs);
 
     _report_every = epochs >= 100 ? epochs / 10 : 1;
 
@@ -137,8 +148,8 @@ int MDNTrainer::train(int epochs)
     	// If a test set was provided, set parameters to the set of parameters
 		// where the minimum test set error has occured.
     	if (_testset != 0) {
-			set_params(_optimal_x);
-		}
+	    set_params(_optimal_x);
+	}
         return -1;
     }
 
@@ -152,18 +163,24 @@ int MDNTrainer::train(int epochs)
 		minlbfgsresults(_lbfgsstate, param_new, _lbfgsrep);
 		set_params(param_new);
     }
-
-
     _terminationtype = _lbfgsrep.terminationtype;
+
+    // restore default sigint handler
+    sigIntHandler.sa_handler = SIG_DFL;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = 0;
+    sigaction(SIGINT, &sigIntHandler, NULL);
     return _terminationtype;
 }
 
-int MDNTrainer::train()
+template<typename NetworkType>
+int MDNTrainer<NetworkType>::train()
 {
     return train(1);
 }
 
-void MDNTrainer::get_params(std::vector<double>& x)
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::get_params(std::vector<double>& x)
 {
     int idx = 0;
     std::vector<Parametrized*>::iterator param_iter;
@@ -179,7 +196,8 @@ void MDNTrainer::get_params(std::vector<double>& x)
     }
 }
 
-void MDNTrainer::get_params(real_1d_array& x)
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::get_params(real_1d_array& x)
 {
     int idx = 0;
     std::vector<Parametrized*>::iterator param_iter;
@@ -196,7 +214,8 @@ void MDNTrainer::get_params(real_1d_array& x)
     //x.setcontent(_n_params, &tmp[0]);
 }
 
-void MDNTrainer::set_params(const real_1d_array& x)
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::set_params(const real_1d_array& x)
 {
     const double* tmp = x.getcontent();
     double* parameters;
@@ -213,7 +232,8 @@ void MDNTrainer::set_params(const real_1d_array& x)
     }
 }
 
-void MDNTrainer::set_params(const std::vector<double>& x)
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::set_params(const std::vector<double>& x)
 {
     double* parameters;
     int idx=0;
@@ -229,7 +249,8 @@ void MDNTrainer::set_params(const std::vector<double>& x)
     }
 }
 
-void MDNTrainer::get_derivs(real_1d_array& x)
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::get_derivs(real_1d_array& x)
 {
     int idx = 0;
     std::vector<Parametrized*>::iterator param_iter;
@@ -245,7 +266,8 @@ void MDNTrainer::get_derivs(real_1d_array& x)
     }
 }
 
-void MDNTrainer::get_derivs(double* derivs)
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::get_derivs(double* derivs)
 {
     int idx = 0;
     std::vector<Parametrized*>::iterator param_iter;
@@ -261,7 +283,8 @@ void MDNTrainer::get_derivs(double* derivs)
     }
 }
 
-void MDNTrainer::f_df(const real_1d_array &x, double &func, real_1d_array &grad,
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::f_df(const real_1d_array &x, double &func, real_1d_array &grad,
                       void *ptr)
 {
     //std::cout << "f_df" << std::endl;
@@ -287,31 +310,6 @@ void MDNTrainer::f_df(const real_1d_array &x, double &func, real_1d_array &grad,
     double err = 0.0;
 
     int k = 0;
-
-    /*
-    printf("Orig trainer at %p\n", trainer);
-    printf("Orig network at %p\n", &trainer->network());
-    printf("Orig inp buffer at %p\n", &trainer->network().input());
-    printf("Orig outp buffer at %p\n", &trainer->network().output());
-    printf("Orig inerr buffer at %p\n", &trainer->network().inerror());
-    printf("Orig outerr buffer at %p\n", &trainer->network().outerror());
-
-	#pragma omp parallel firstprivate(trainer)
-    {
-    	MDNTrainer ctrainer = *trainer;
-    	MDN cnetwork = trainer->network();
-
-    	printf("Thread %d, network %p\n", omp_get_thread_num(), &cnetwork);
-    	printf("Thread %d, inp buffer %p\n", omp_get_thread_num(), &cnetwork.input());
-    	printf("Thread %d, out buffer %p\n", omp_get_thread_num(), &cnetwork.output());
-    	printf("Thread %d, inerr buffer %p\n", omp_get_thread_num(), &cnetwork.inerror());
-    	printf("Thread %d, outerr buffer %p\n", omp_get_thread_num(), &cnetwork.outerror());
-    	//printf("Thread %d, trainer %p\n", omp_get_thread_num(), trainer);
-    	//printf("Thread %d, trainer->network() %p\n", omp_get_thread_num(), &trainer->network());
-    	//printf("Thread %d, ctrainer (local copy) %p\n", omp_get_thread_num(), &ctrainer);
-    	//printf("Thread %d, ctrainer->network() %p\n", omp_get_thread_num(), &ctrainer.network());
-    }
-    */
 
     for (k=0; k < trainer->dataset().size(); ++k)
     {
@@ -342,7 +340,8 @@ void MDNTrainer::f_df(const real_1d_array &x, double &func, real_1d_array &grad,
 }
 
 
-void MDNTrainer::report(const real_1d_array &x, double func, void *ptr)
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::report(const real_1d_array &x, double func, void *ptr)
 {
     MDNTrainer* trainer = (MDNTrainer *)ptr;
     trainer->_it_count++;
@@ -377,32 +376,38 @@ void MDNTrainer::report(const real_1d_array &x, double func, void *ptr)
     }
 }
 
-int MDNTrainer::get_terminationtype()
+template<typename NetworkType>
+int MDNTrainer<NetworkType>::get_terminationtype()
 {
     return _terminationtype;
 }
 
-void MDNTrainer::abort_handler(int s)
+template<typename NetworkType>
+void MDNTrainer<NetworkType>::abort_handler(int s)
 {
     throw MDNTrainerAbortError();
 }
 
-std::vector<double> MDNTrainer::getErrorTrace()
+template<typename NetworkType>
+std::vector<double> MDNTrainer<NetworkType>::getErrorTrace()
 {
 	return _errors;
 }
 
-std::vector<double> MDNTrainer::getTestErrorTrace()
+template<typename NetworkType>
+std::vector<double> MDNTrainer<NetworkType>::getTestErrorTrace()
 {
 	return _test_errors;
 }
 
-std::vector<double> MDNTrainer::getOptimalParams()
+template<typename NetworkType>
+std::vector<double> MDNTrainer<NetworkType>::getOptimalParams()
 {
 	return _optimal_x;
 }
 
-int MDNTrainer::getOptimalEpoch()
+template<typename NetworkType>
+int MDNTrainer<NetworkType>::getOptimalEpoch()
 {
 	return _optimal_it;
-}
+}*/

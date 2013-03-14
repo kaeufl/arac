@@ -7,7 +7,6 @@ namespace arac {
 namespace structure {
 namespace networks {
 
-
 class MDN : public Network
 {
 public:
@@ -15,8 +14,6 @@ public:
 	/// Create a new MDN object.
 	///
 	MDN(int M, int c);
-
-	void test();
 
 	///
 	/// Return error for the given network output and target vector.
@@ -53,6 +50,28 @@ protected:
 	double dist(const double* target_p, const double* params_p, int m);
 };
 
+class PeriodicMDN : public MDN
+{
+public:
+    PeriodicMDN(int M, int c);
+
+    ///
+    /// Return error for the given network output and target vector.
+    ///
+    double get_error(const double* output_p, int outputsize,
+                       const double* target_p, int targetsize);
+
+    ///
+    /// Get the output error for every output node for given network output
+    /// and target vector.
+    ///
+    void get_output_error(const double* output_p, int outputsize,
+                             const double* target_p, int targetsize,
+                             double* outputerror_p);
+
+private:
+    int _nperiods;
+};
 
 }
 }

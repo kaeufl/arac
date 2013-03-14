@@ -41,7 +41,8 @@ from pybrain.structure import (
     SoftmaxLayer,
     SwitchLayer,
     TanhLayer,
-    MixtureDensityNetwork
+    MixtureDensityNetwork,
+    PeriodicMixtureDensityNetwork
 )
 
 from pybrain.structure.networks.feedforward import \
@@ -111,6 +112,19 @@ class PybrainAracMapper(object):
             proxy = self[network]
         except KeyError:
             proxy = cppbridge.MDN(network.M, network.c)
+            self[network] = proxy
+        proxy.init_input(network.inputbuffer)
+        proxy.init_output(network.outputbuffer)
+        proxy.init_inerror(network.inputerror)
+        proxy.init_outerror(network.outputerror)
+        return proxy
+    
+    def _periodic_mdn_handler(self, network):
+        # See if there already is a proxy:
+        try:
+            proxy = self[network]
+        except KeyError:
+            proxy = cppbridge.PeriodicMDN(network.M, network.c)
             self[network] = proxy
         proxy.init_input(network.inputbuffer)
         proxy.init_output(network.outputbuffer)
@@ -248,7 +262,8 @@ class PybrainAracMapper(object):
             TanhLayer: self._simple_layer_handler,
             _FeedForwardNetwork: self._network_handler,
             _RecurrentNetwork: self._network_handler,
-            _MixtureDensityNetwork: self._mdn_handler
+            _MixtureDensityNetwork: self._mdn_handler,
+            _PeriodicMixtureDensityNetwork: self._periodic_mdn_handler,
         }
         self.map[obj] = handlers[type(obj)](obj)
         return self.map[obj]
@@ -413,9 +428,6 @@ class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
         self.argdict['M'] = M
         self.argdict['c'] = c
 
-    def test(self):
-        self.proxies[self].test()
-
     def getMixtureParams(self, y):
         y = scipy.asarray(y, dtype='float64')
         params = scipy.zeros(self.outdim)
@@ -424,10 +436,10 @@ class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
                 params[self.M:2*self.M],
                 scipy.reshape(params[2*self.M:], (self.M, self.c)))
 
-    def _phi(self, T, mu, sigma):
-        dist = scipy.sum((T[None,:]-mu)**2, axis=1)
-        phi = (1.0 / (2*scipy.pi*sigma)**(0.5*self.c)) * scipy.exp(- 1.0 * dist / (2 * sigma))
-        return scipy.maximum(phi, scipy.finfo(float).eps)
+#    def _phi(self, T, mu, sigma):
+#        dist = scipy.sum((T[None,:]-mu)**2, axis=1)
+#        phi = (1.0 / (2*scipy.pi*sigma)**(0.5*self.c)) * scipy.exp(- 1.0 * dist / (2 * sigma))
+#        return scipy.maximum(phi, scipy.finfo(float).eps)
 
     def getOutputError(self, y, t):
         y = scipy.asarray(y, dtype='float64')
@@ -439,3 +451,6 @@ class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
     def getError(self, y, t):
         return self.proxies[self].get_error(y, t)
 
+class _PeriodicMixtureDensityNetwork(_MixtureDensityNetwork, PeriodicMixtureDensityNetwork):
+    """Pybrain adapter for an arac periodic MDN."""
+    pass

@@ -786,7 +786,6 @@ class MDN : public Network
 {
     public:
     	MDN(int M, int c);
-        void test();
         double get_error(double* output_p, int outputsize,
         				 double* target_p, int targetsize);
         void get_mixture_params(double* output_p, int outsize,
@@ -810,6 +809,30 @@ class MDN : public Network
     }
 };
 
+%feature("notabstract") PeriodicMDN;
+class PeriodicMDN : public MDN
+{
+    public:
+        PeriodicMDN(int M, int c);
+        double get_error(double* output_p, int outputsize,
+                 double* target_p, int targetsize);
+        void get_output_error(double* output_p, int outputsize,
+                double* target_p, int targetsize,
+                double* outputerror_p);
+};
+
+%extend PeriodicMDN
+{
+    void get_output_error(double* output_p, int outputsize,
+              double* target_p, int targetsize,
+              double* outputerror_p, int outputerrorsize)
+    {
+        // TODO: check array dimensions
+        $self->get_output_error(output_p, outputsize,
+                  target_p, targetsize,
+                  outputerror_p);
+    }
+};
 
 %apply (double* INPLACE_ARRAY1, int DIM1) {(double* sample_p, int samplelength),
                                            (double* target_p, int targetlength)};
@@ -1063,14 +1086,47 @@ class SequentialBackprop
 
 double gradient_check(BaseNetwork& network);
 
-class MDNTrainer
+//%{
+//#include "../cpp/optimization/mdntrainer.h"
+//%}
+
+template<typename NetworkType>
+class MDNTrainer 
 {
     public:
-        MDNTrainer(MDN& network, SupervisedSimpleDataset& ds);
+        MDNTrainer<NetworkType>(NetworkType& network, SupervisedSimpleDataset& ds);
+        MDNTrainer<NetworkType>(NetworkType& network, SupervisedSimpleDataset&
+        ds, SupervisedSimpleDataset& validationset);
         ~MDNTrainer();
-
-        MDN& network();
+        NetworkType& network();
         SupervisedSimpleDataset& dataset();
-        void train();
+        int train(int epochs);
+        int train();
+        int get_terminationtype();
+        std::vector<double> getErrorTrace();
+        std::vector<double> getValidationErrorTrace();
+        std::vector<double> getOptimalParams();
+        int getOptimalEpoch();
 };
 
+%template(FastMDNTrainer) MDNTrainer<MDN>;
+%template(FastPeriodicMDNTrainer) MDNTrainer<PeriodicMDN>;
+
+//%rename(FastMDNTrainer) MDNTrainer<MDN>;
+//class MDNTrainer<MDN>
+//{
+//   public:
+//        MDNTrainer<MDN>(MDN& network, SupervisedSimpleDataset& ds);
+//        MDNTrainer<MDN>(MDN& network, SupervisedSimpleDataset& ds, SupervisedSimpleDataset& testset);
+//        ~MDNTrainer<MDN>();
+//
+//        MDN& network();
+//        SupervisedSimpleDataset& dataset();
+//        int train();
+//        int train(int epochs);
+//        int get_terminationtype();
+//        std::vector<double> getErrorTrace();
+//        std::vector<double> getTestErrorTrace();
+//        std::vector<double> getOptimalParams();
+//        int getOptimalEpoch();
+//};

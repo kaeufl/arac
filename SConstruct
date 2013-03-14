@@ -2,13 +2,13 @@ import sys
 import distutils.sysconfig
 import numpy.distutils.misc_util
 
-#LIBPATH = ['/net/home/kaeufl/local/lib', '/usr/lib', '.', '/usr/local/lib', '/sw/lib']
-LIBPATH = ['/home/pk/local/lib', '/usr/lib', '.', '/usr/local/lib', '/sw/lib']
+LIBPATH = ['/net/home/kaeufl/local/lib', '/usr/lib', '.', '/usr/local/lib', '/sw/lib']
+#LIBPATH = ['/home/pk/local/lib', '/usr/lib', '.', '/usr/local/lib', '/sw/lib']
 
-#CPPPATH = ['/net/home/kaeufl/local/include','/usr/local/include', '/sw/include', '/usr/include']
-CPPPATH = ['/home/pk/local/include','/usr/local/include', '/sw/include', '/usr/include']
+CPPPATH = ['/net/home/kaeufl/local/include','/usr/local/include', '/sw/include', '/usr/include']
+#CPPPATH = ['/home/pk/local/include','/usr/local/include', '/sw/include', '/usr/include']
 
-CCFLAGS = ['-O3', '-g', '-fopenmp']
+CCFLAGS = ['-O3', '-fopenmp', '-fbounds-check']
 
 # Some settings depending on the platform.
 if sys.platform == 'darwin':
@@ -23,8 +23,8 @@ elif sys.platform == 'linux2':
 else:
     raise SystemExit("Cannot build on %s." % sys.platform)
 
-#TARGET = '/net/home/kaeufl/local'
-TARGET = '/home/pk/local'
+TARGET = '/net/home/kaeufl/local'
+#TARGET = '/home/pk/local'
 
 PYTHONPATH = [distutils.sysconfig.get_python_inc()]
 NUMPYPATH = numpy.distutils.misc_util.get_numpy_include_dirs()
