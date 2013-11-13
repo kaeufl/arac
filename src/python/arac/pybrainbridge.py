@@ -428,13 +428,13 @@ class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
         self.argdict['M'] = M
         self.argdict['c'] = c
 
-    def getMixtureParams(self, y):
-        y = scipy.asarray(y, dtype='float64')
-        params = scipy.zeros(self.outdim)
-        self.proxies[self].get_mixture_params(y, params)
-        return (params[0:self.M],
-                params[self.M:2*self.M],
-                scipy.reshape(params[2*self.M:], (self.M, self.c)))
+    #def getMixtureParams(self, y):
+    #    y = scipy.asarray(y, dtype='float64')
+    #    params = scipy.zeros(self.outdim)
+    #    self.proxies[self].get_mixture_params(y, params)
+    #    return (params[0:self.M],
+    #            params[self.M:2*self.M],
+    #            scipy.reshape(params[2*self.M:], (self.M, self.c)))
 
 #    def _phi(self, T, mu, sigma):
 #        dist = scipy.sum((T[None,:]-mu)**2, axis=1)
@@ -450,7 +450,7 @@ class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
 
     def getError(self, y, t):
         return self.proxies[self].get_error(y, t)
-
+    
 class _PeriodicMixtureDensityNetwork(_MixtureDensityNetwork, PeriodicMixtureDensityNetwork):
     """Pybrain adapter for an arac periodic MDN."""
     pass
