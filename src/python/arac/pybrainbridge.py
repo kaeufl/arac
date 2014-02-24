@@ -449,7 +449,13 @@ class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
         return outerr
 
     def getError(self, y, t):
-        return self.proxies[self].get_error(y, t)
+        if y.ndim == 2 and t.ndim == 3:
+            err = 0
+            for inp, tgt in zip(y,t):
+                err += scipy.sum(self.proxies[self].get_error(inp, tgt[0]))
+        else:
+            err = self.proxies[self].get_error(y, t) 
+        return err
     
 class _PeriodicMixtureDensityNetwork(_MixtureDensityNetwork, PeriodicMixtureDensityNetwork):
     """Pybrain adapter for an arac periodic MDN."""
