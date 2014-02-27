@@ -1094,9 +1094,9 @@ template<typename NetworkType>
 class MDNTrainer 
 {
     public:
-        MDNTrainer<NetworkType>(NetworkType& network, SupervisedSimpleDataset& ds);
+        MDNTrainer<NetworkType>(NetworkType& network, SupervisedSimpleDataset& ds, bool use_cg);
         MDNTrainer<NetworkType>(NetworkType& network, SupervisedSimpleDataset&
-        ds, SupervisedSimpleDataset& validationset);
+        ds, SupervisedSimpleDataset& validationset, bool use_cg);
         ~MDNTrainer();
         NetworkType& network();
         SupervisedSimpleDataset& dataset();

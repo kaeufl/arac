@@ -28,10 +28,12 @@ class MDNTrainer
         int _n_params;
 
         MDNTrainer(NetworkType& network,
-                    SupervisedDataset<double*, double*>& dataset);
+                    SupervisedDataset<double*, double*>& dataset,
+                    bool use_cg);
         MDNTrainer(NetworkType& network,
 		   SupervisedDataset<double*, double*>& dataset,
-		   SupervisedDataset<double*, double*>& validationset);
+		   SupervisedDataset<double*, double*>& validationset,
+		   bool use_cg);
         ~MDNTrainer();
 
         ///
@@ -45,9 +47,9 @@ class MDNTrainer
         SupervisedDataset<double*, double*>& dataset();
 
         ///
-	/// Return a reference to the (optional) validation set.
-	///
-	SupervisedDataset<double*, double*>& validationset();
+        /// Return a reference to the (optional) validation set.
+        ///
+        SupervisedDataset<double*, double*>& validationset();
 
         ///
         /// Train network for 'epochs' iterations.
@@ -124,6 +126,8 @@ class MDNTrainer
 
         minlbfgsstate _lbfgsstate;
         minlbfgsreport _lbfgsrep;
+        mincgstate _cgstate;
+        mincgreport _cgrep;
         bool _new_run;
         int _it_count;
         int _report_every;
@@ -133,6 +137,8 @@ class MDNTrainer
         std::vector<double> _optimal_x;
         int _optimal_it;
         double _optimal_err;
+
+        bool use_cg;
 
         //static const double _epsg = 0.0000000001;
         static const double _epsg = 0;
@@ -162,7 +168,8 @@ using namespace alglib;
 
 template<typename NetworkType>
 MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
-                       SupervisedDataset<double*, double*>& dataset) :
+                         SupervisedDataset<double*, double*>& dataset,
+                         bool use_cg) :
     _network(network),
     _dataset(&dataset),
     _validationset(0),
@@ -170,7 +177,8 @@ MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
     _validation_errors(),
     _optimal_x(),
     _optimal_it(0),
-    _optimal_err(0)
+    _optimal_err(0),
+    use_cg(use_cg)
 {
     initTrainer();
 }
@@ -178,7 +186,8 @@ MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
 template<typename NetworkType>
 MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
 						  SupervisedDataset<double*, double*>& dataset,
-						  SupervisedDataset<double*, double*>& validationset) :
+						  SupervisedDataset<double*, double*>& validationset,
+						  bool use_cg) :
 	_network(network),
 	_dataset(&dataset),
 	_validationset(&validationset),
@@ -186,7 +195,8 @@ MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
     _validation_errors(),
     _optimal_x(),
 	_optimal_it(0),
-	_optimal_err(0)
+	_optimal_err(0),
+	use_cg(use_cg)
 {
 	initTrainer();
 }
@@ -216,8 +226,15 @@ void MDNTrainer<NetworkType>::initTrainer()
 
 	try
 	{
-	   minlbfgscreate(_n_params, 5, x, _lbfgsstate);
-	   minlbfgssetxrep(_lbfgsstate, true);
+	   if (use_cg == true) {
+	     std::cout << "Initializing cg trainer" << std::endl;
+	     mincgcreate(_n_params, x,_cgstate);
+	     mincgsetxrep(_cgstate, true);
+	   } else {
+         std::cout << "Initializing lbfgs trainer" << std::endl;
+         minlbfgscreate(_n_params, 5, x, _lbfgsstate);
+         minlbfgssetxrep(_lbfgsstate, true);
+	   }
 	}
 	catch (ap_error& e)
 	{
@@ -262,7 +279,11 @@ int MDNTrainer<NetworkType>::train(int epochs)
 
     try
     {
-        minlbfgssetcond(_lbfgsstate, _epsg, _epsf, _epsx, epochs);
+        if (use_cg == true) {
+            mincgsetcond(_cgstate, _epsg, _epsf, _epsx, epochs);
+        } else {
+            minlbfgssetcond(_lbfgsstate, _epsg, _epsf, _epsx, epochs);
+        }
     }
     catch (ap_error& e)
     {
@@ -272,17 +293,30 @@ int MDNTrainer<NetworkType>::train(int epochs)
     try
     {
         if (_it_count == 0) {
-            alglib::minlbfgsoptimize(
-                _lbfgsstate, MDNTrainer::f_df, MDNTrainer::report, this
-            );
+            if (use_cg == true) {
+              alglib::mincgoptimize(
+                  _cgstate, MDNTrainer::f_df, MDNTrainer::report, this
+              );
+            } else {
+              alglib::minlbfgsoptimize(
+                  _lbfgsstate, MDNTrainer::f_df, MDNTrainer::report, this
+              );
+            }
         } else {
             real_1d_array x;
             x.setlength(_n_params);
             get_params(x);
-            alglib::minlbfgsrestartfrom(_lbfgsstate, x);
-            alglib::minlbfgsoptimize(
-                _lbfgsstate, MDNTrainer::f_df, MDNTrainer::report, this
-            );
+            if (use_cg == true) {
+              alglib::mincgrestartfrom(_cgstate, x);
+              alglib::mincgoptimize(
+                _cgstate, MDNTrainer::f_df, MDNTrainer::report, this
+              );
+            } else {
+              alglib::minlbfgsrestartfrom(_lbfgsstate, x);
+              alglib::minlbfgsoptimize(
+                  _lbfgsstate, MDNTrainer::f_df, MDNTrainer::report, this
+              );
+            }
         }
     }
     catch (ap_error& e)
@@ -306,10 +340,17 @@ int MDNTrainer<NetworkType>::train(int epochs)
     } else {
     	real_1d_array param_new;
 		param_new.setlength(_n_params);
-		minlbfgsresults(_lbfgsstate, param_new, _lbfgsrep);
+		if (use_cg == true) {
+		    mincgresults(_cgstate, param_new, _cgrep);
+		    _terminationtype = _cgrep.terminationtype;
+		} else {
+		    minlbfgsresults(_lbfgsstate, param_new, _lbfgsrep);
+		    _terminationtype = _lbfgsrep.terminationtype;
+		}
+
 		set_params(param_new);
     }
-    _terminationtype = _lbfgsrep.terminationtype;
+
 
     // restore default sigint handler
     sigIntHandler.sa_handler = SIG_DFL;
