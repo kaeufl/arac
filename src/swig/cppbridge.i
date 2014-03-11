@@ -1094,9 +1094,11 @@ template<typename NetworkType>
 class MDNTrainer 
 {
     public:
-        MDNTrainer<NetworkType>(NetworkType& network, SupervisedSimpleDataset& ds, bool use_cg);
-        MDNTrainer<NetworkType>(NetworkType& network, SupervisedSimpleDataset&
-        ds, SupervisedSimpleDataset& validationset, bool use_cg);
+        MDNTrainer<NetworkType>(NetworkType& network, SupervisedSimpleDataset& ds, 
+                                bool use_cg, int batch_size, int batch_epochs);
+        MDNTrainer<NetworkType>(NetworkType& network, 
+            SupervisedSimpleDataset& ds, SupervisedSimpleDataset& validationset, 
+            bool use_cg, int batch_size, int batch_epochs);
         ~MDNTrainer();
         NetworkType& network();
         SupervisedSimpleDataset& dataset();

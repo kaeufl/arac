@@ -5,6 +5,7 @@
 #define Arac_OPTIMIZER_MDNTRAINER_INCLUDED
 
 #include <signal.h>
+#include <algorithm>
 #include "../structure/networks/mdn.h"
 #include "../datasets/datasets.h"
 #include "../utilities/alglib/optimization.h"
@@ -26,14 +27,21 @@ class MDNTrainer
 {
     public:
         int _n_params;
+        std::vector<int> _idxs;
+        int _batch_size;
+        int _it_count;
 
         MDNTrainer(NetworkType& network,
                     SupervisedDataset<double*, double*>& dataset,
-                    bool use_cg);
+                    bool use_cg,
+                    int batch_size,
+                    int batch_epochs);
         MDNTrainer(NetworkType& network,
 		   SupervisedDataset<double*, double*>& dataset,
 		   SupervisedDataset<double*, double*>& validationset,
-		   bool use_cg);
+		   bool use_cg,
+		   int batch_size,
+           int batch_epochs);
         ~MDNTrainer();
 
         ///
@@ -129,7 +137,6 @@ class MDNTrainer
         mincgstate _cgstate;
         mincgreport _cgrep;
         bool _new_run;
-        int _it_count;
         int _report_every;
         int _terminationtype;
         std::vector<double> _errors;
@@ -137,18 +144,20 @@ class MDNTrainer
         std::vector<double> _optimal_x;
         int _optimal_it;
         double _optimal_err;
+        int _batch_epochs;
 
         bool use_cg;
 
         //static const double _epsg = 0.0000000001;
-        static const double _epsg = 0;
-        static const double _epsf = 0;
-        static const double _epsx = 0;
+        static const double _epsg = 0.0;
+        static const double _epsf = 0.0;
+        static const double _epsx = 0.0;
 
         static void f_df(const real_1d_array &x, double &func, real_1d_array &grad, void *ptr);
         static void report(const real_1d_array &x, double func, void *ptr);
 
         static void abort_handler(int s);
+        //void restore_abort_handler(struct sigaction sigAction);
 };
 
 }
@@ -169,7 +178,9 @@ using namespace alglib;
 template<typename NetworkType>
 MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
                          SupervisedDataset<double*, double*>& dataset,
-                         bool use_cg) :
+                         bool use_cg,
+                         int batch_size,
+                         int batch_epochs) :
     _network(network),
     _dataset(&dataset),
     _validationset(0),
@@ -178,7 +189,10 @@ MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
     _optimal_x(),
     _optimal_it(0),
     _optimal_err(0),
-    use_cg(use_cg)
+    use_cg(use_cg),
+    _batch_size(batch_size),
+    _terminationtype(0),
+    _batch_epochs(batch_epochs)
 {
     initTrainer();
 }
@@ -187,7 +201,9 @@ template<typename NetworkType>
 MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
 						  SupervisedDataset<double*, double*>& dataset,
 						  SupervisedDataset<double*, double*>& validationset,
-						  bool use_cg) :
+						  bool use_cg,
+						  int batch_size,
+                          int batch_epochs) :
 	_network(network),
 	_dataset(&dataset),
 	_validationset(&validationset),
@@ -196,7 +212,10 @@ MDNTrainer<NetworkType>::MDNTrainer(NetworkType& network,
     _optimal_x(),
 	_optimal_it(0),
 	_optimal_err(0),
-	use_cg(use_cg)
+	use_cg(use_cg),
+	_batch_size(batch_size),
+	_terminationtype(0),
+	_batch_epochs(batch_epochs)
 {
 	initTrainer();
 }
@@ -241,7 +260,20 @@ void MDNTrainer<NetworkType>::initTrainer()
 	   std::cout << e.msg << std::endl;
 	}
 
+	// initialize the index vector, this is needed to generate random index sequences later
+	_idxs.reserve(dataset().size());
+	for (int i=0; i<dataset().size(); ++i) _idxs.push_back(i);
+	if (_batch_size == 0) {
+	    _batch_size = dataset().size();
 	}
+	std::cout << "Batch size is " << _batch_size << std::endl;
+}
+
+//template<typename NetworkType>
+//void MDNTrainer<NetworkType>::restore_abort_handler(struct sigaction sigAction)
+//{
+//
+//}
 
 template<typename NetworkType>
 NetworkType& MDNTrainer<NetworkType>::network()
@@ -265,24 +297,33 @@ template<typename NetworkType>
 int MDNTrainer<NetworkType>::train(int epochs)
 {
     // set custom signal handler
-    struct sigaction sigIntHandler;
+    struct sigaction sigIntHandler, oldSigAction;
+    bool is_batch = false;
+    int opt_iterations = epochs;
 
     sigIntHandler.sa_handler = MDNTrainer<NetworkType>::abort_handler;
     sigemptyset(&sigIntHandler.sa_mask);
-    sigIntHandler.sa_flags = SA_RESETHAND;
-    sigaction(SIGINT, &sigIntHandler, NULL);
+    //sigIntHandler.sa_flags = SA_RESETHAND;
+    sigaction(SIGINT, &sigIntHandler, &oldSigAction);
 
     _errors.reserve(_errors.size()+epochs);
     _validation_errors.reserve(_validation_errors.size()+epochs);
 
-    _report_every = epochs >= 100 ? epochs / 10 : 1;
+    if (_it_count == 0) {
+        _report_every = epochs >= 100 ? epochs / 10 : 1;
+    }
+
+    if (_batch_size < dataset().size()) {
+        is_batch = true;
+        opt_iterations = _batch_epochs;
+    }
 
     try
     {
         if (use_cg == true) {
-            mincgsetcond(_cgstate, _epsg, _epsf, _epsx, epochs);
+            mincgsetcond(_cgstate, _epsg, _epsf, _epsx, opt_iterations);
         } else {
-            minlbfgssetcond(_lbfgsstate, _epsg, _epsf, _epsx, epochs);
+            minlbfgssetcond(_lbfgsstate, _epsg, _epsf, _epsx, opt_iterations);
         }
     }
     catch (ap_error& e)
@@ -321,6 +362,7 @@ int MDNTrainer<NetworkType>::train(int epochs)
     }
     catch (ap_error& e)
     {
+        std::cout << "An ALGLIB error occurred!" << std::endl;
         std::cout << e.msg << std::endl;
     }
     catch (MDNTrainerAbortError& e)
@@ -328,9 +370,32 @@ int MDNTrainer<NetworkType>::train(int epochs)
     	// If a validation set was provided, set parameters to the set of parameters
 		// where the minimum validation set error has occured.
     	if (_validationset != 0) {
-	    set_params(_optimal_x);
-	}
+    	    set_params(_optimal_x);
+    	}
+    	sigaction(SIGINT, &oldSigAction, NULL);
+    	//restore_abort_handler(oldSigIntHandler);
         return -1;
+    }
+
+    real_1d_array param_new;
+    param_new.setlength(_n_params);
+    if (use_cg == true) {
+        mincgresults(_cgstate, param_new, _cgrep);
+        _terminationtype = _cgrep.terminationtype;
+    } else {
+        minlbfgsresults(_lbfgsstate, param_new, _lbfgsrep);
+        _terminationtype = _lbfgsrep.terminationtype;
+    }
+
+    // if this is a batch run, draw a new batch by randomizing the index sequence and restart
+    if (is_batch) {
+        std::random_shuffle(_idxs.begin(), _idxs.end());
+        int tmp = epochs - (int) _lbfgsrep.iterationscount - 1;
+        if (tmp > 0) {
+            std::cout << "New batch at iteration " << _it_count << std::endl;
+            sigaction(SIGINT, &oldSigAction, NULL);
+            return train(tmp);
+        }
     }
 
     // If a validation set was provided, set parameters to the set of parameters
@@ -338,25 +403,12 @@ int MDNTrainer<NetworkType>::train(int epochs)
     if (_validationset != 0) {
     	set_params(_optimal_x);
     } else {
-    	real_1d_array param_new;
-		param_new.setlength(_n_params);
-		if (use_cg == true) {
-		    mincgresults(_cgstate, param_new, _cgrep);
-		    _terminationtype = _cgrep.terminationtype;
-		} else {
-		    minlbfgsresults(_lbfgsstate, param_new, _lbfgsrep);
-		    _terminationtype = _lbfgsrep.terminationtype;
-		}
-
 		set_params(param_new);
     }
 
+    sigaction(SIGINT, &oldSigAction, NULL);
+    //std::cout << "Finished training" << std::endl;
 
-    // restore default sigint handler
-    sigIntHandler.sa_handler = SIG_DFL;
-    sigemptyset(&sigIntHandler.sa_mask);
-    sigIntHandler.sa_flags = 0;
-    sigaction(SIGINT, &sigIntHandler, NULL);
     return _terminationtype;
 }
 
@@ -495,8 +547,8 @@ void MDNTrainer<NetworkType>::f_df(const real_1d_array &x, double &func, real_1d
 
     //func = 0;
     double err = 0.0;
-
     int k = 0;
+    int idx;
 
     /*
     printf("Orig trainer at %p\n", trainer);
@@ -523,17 +575,24 @@ void MDNTrainer<NetworkType>::f_df(const real_1d_array &x, double &func, real_1d
     }
     */
 
-    for (k=0; k < trainer->dataset().size(); ++k)
+    //for (k=0; k < trainer->dataset().size(); ++k)
+    for (k=0; k < trainer->_batch_size; ++k)
     {
-        y = trainer->network().activate(trainer->dataset()[k].first);
+        idx = trainer->_idxs.at(k);
+        //std::cout << idx << ", ";
+        y = trainer->network().activate(trainer->dataset()[idx].first);
         err += trainer->network().get_error(y, trainer->dataset().targetsize(),
-            trainer->dataset()[k].second, trainer->dataset().targetsize());
+            trainer->dataset()[idx].second, trainer->dataset().targetsize());
         trainer->network().get_output_error(y, trainer->dataset().targetsize(),
-            trainer->dataset()[k].second, trainer->dataset().targetsize(),
+            trainer->dataset()[idx].second, trainer->dataset().targetsize(),
            output_err);
         trainer->network().back_activate(output_err);
     }
+    //std::cout << err << std::endl;
 
+    //double eps = static_cast <double> (rand()) / (static_cast <double> (RAND_MAX/1.0));
+    //std::cout << eps << std::endl;
+    //func = err + eps;
     func = err;
     trainer->get_derivs(grad);
     //trainer->get_derivs(derivs);
@@ -546,8 +605,8 @@ void MDNTrainer<NetworkType>::f_df(const real_1d_array &x, double &func, real_1d
 
     // restore old parameters
     //trainer->set_params(old_params);
-
-    //std::cout << "Error: " << (func/trainer->dataset().size()) << std::endl;
+    //std::cout << func << std::endl;
+    //std::cout << "Error: " << (func/trainer->_batch_size) << std::endl;
     //std::cout << "Grad: " << grad.tostring(4).c_str() << std::endl;
 }
 
@@ -557,7 +616,8 @@ void MDNTrainer<NetworkType>::report(const real_1d_array &x, double func, void *
 {
     MDNTrainer* trainer = (MDNTrainer *)ptr;
     trainer->_it_count++;
-    trainer->_errors.push_back(func/trainer->dataset().size());
+    //trainer->_errors.push_back(func/trainer->dataset().size());
+    trainer->_errors.push_back(func/trainer->_batch_size);
     double validation_err = 0.0;
     if (trainer->_validationset != 0) {
     	const double* y;
