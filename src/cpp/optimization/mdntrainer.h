@@ -315,7 +315,7 @@ int MDNTrainer<NetworkType>::train(int epochs)
 
     if (_batch_size < dataset().size()) {
         is_batch = true;
-        opt_iterations = _batch_epochs;
+        opt_iterations = _batch_epochs - 1;
     }
 
     try
@@ -389,10 +389,10 @@ int MDNTrainer<NetworkType>::train(int epochs)
 
     // if this is a batch run, draw a new batch by randomizing the index sequence and restart
     if (is_batch) {
-        std::random_shuffle(_idxs.begin(), _idxs.end());
         int tmp = epochs - (int) _lbfgsrep.iterationscount - 1;
         if (tmp > 0) {
             std::cout << "New batch at iteration " << _it_count << std::endl;
+            std::random_shuffle(_idxs.begin(), _idxs.end());
             sigaction(SIGINT, &oldSigAction, NULL);
             return train(tmp);
         }
@@ -526,56 +526,19 @@ template<typename NetworkType>
 void MDNTrainer<NetworkType>::f_df(const real_1d_array &x, double &func, real_1d_array &grad,
                       void *ptr)
 {
-    //std::cout << "f_df" << std::endl;
     MDNTrainer* trainer = (MDNTrainer *)ptr;
-    // TODO: optimize performance by not copying old parameters, but just keeping
-    // a pointer
-    //real_1d_array old_params;
-    //old_params.setlength(trainer->_n_params);
-    //trainer->get_params(old_params);
 
     trainer->set_params(x);
 
     double* output_err = new double[trainer->_n_params];
     const double* y;
-    //double* tmp = new double[trainer->_n_params];
-    //double* derivs = new double[trainer->_n_params];
 
     trainer->network().clear_derivatives();
-    //trainer->get_derivs(grad);
-    //std::cout << "Grad: " << grad.tostring(4).c_str() << std::endl;
 
-    //func = 0;
     double err = 0.0;
     int k = 0;
     int idx;
 
-    /*
-    printf("Orig trainer at %p\n", trainer);
-    printf("Orig network at %p\n", &trainer->network());
-    printf("Orig inp buffer at %p\n", &trainer->network().input());
-    printf("Orig outp buffer at %p\n", &trainer->network().output());
-    printf("Orig inerr buffer at %p\n", &trainer->network().inerror());
-    printf("Orig outerr buffer at %p\n", &trainer->network().outerror());
-
-	#pragma omp parallel firstprivate(trainer)
-    {
-    	MDNTrainer ctrainer = *trainer;
-    	MDN cnetwork = trainer->network();
-
-    	printf("Thread %d, network %p\n", omp_get_thread_num(), &cnetwork);
-    	printf("Thread %d, inp buffer %p\n", omp_get_thread_num(), &cnetwork.input());
-    	printf("Thread %d, out buffer %p\n", omp_get_thread_num(), &cnetwork.output());
-    	printf("Thread %d, inerr buffer %p\n", omp_get_thread_num(), &cnetwork.inerror());
-    	printf("Thread %d, outerr buffer %p\n", omp_get_thread_num(), &cnetwork.outerror());
-    	//printf("Thread %d, trainer %p\n", omp_get_thread_num(), trainer);
-    	//printf("Thread %d, trainer->network() %p\n", omp_get_thread_num(), &trainer->network());
-    	//printf("Thread %d, ctrainer (local copy) %p\n", omp_get_thread_num(), &ctrainer);
-    	//printf("Thread %d, ctrainer->network() %p\n", omp_get_thread_num(), &ctrainer.network());
-    }
-    */
-
-    //for (k=0; k < trainer->dataset().size(); ++k)
     for (k=0; k < trainer->_batch_size; ++k)
     {
         idx = trainer->_idxs.at(k);
@@ -588,26 +551,9 @@ void MDNTrainer<NetworkType>::f_df(const real_1d_array &x, double &func, real_1d
            output_err);
         trainer->network().back_activate(output_err);
     }
-    //std::cout << err << std::endl;
 
-    //double eps = static_cast <double> (rand()) / (static_cast <double> (RAND_MAX/1.0));
-    //std::cout << eps << std::endl;
-    //func = err + eps;
     func = err;
     trainer->get_derivs(grad);
-    //trainer->get_derivs(derivs);
-    //grad.setlength(trainer->_n_params);
-    //grad.setcontent(trainer->_n_params, derivs);
-//    for (int p=0; p!=trainer->_n_params; ++p)
-//    {
-//        grad[p] = derivs[p];
-//    }
-
-    // restore old parameters
-    //trainer->set_params(old_params);
-    //std::cout << func << std::endl;
-    //std::cout << "Error: " << (func/trainer->_batch_size) << std::endl;
-    //std::cout << "Grad: " << grad.tostring(4).c_str() << std::endl;
 }
 
 
