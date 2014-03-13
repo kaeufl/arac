@@ -265,8 +265,9 @@ void MDNTrainer<NetworkType>::initTrainer()
 	for (int i=0; i<dataset().size(); ++i) _idxs.push_back(i);
 	if (_batch_size == 0) {
 	    _batch_size = dataset().size();
+	} else {
+	    std::cout << "Batch size is " << _batch_size << std::endl;
 	}
-	std::cout << "Batch size is " << _batch_size << std::endl;
 }
 
 //template<typename NetworkType>
@@ -309,13 +310,13 @@ int MDNTrainer<NetworkType>::train(int epochs)
     _errors.reserve(_errors.size()+epochs);
     _validation_errors.reserve(_validation_errors.size()+epochs);
 
-    if (_it_count == 0) {
-        _report_every = epochs >= 100 ? epochs / 10 : 1;
-    }
-
     if (_batch_size < dataset().size()) {
         is_batch = true;
         opt_iterations = _batch_epochs - 1;
+    }
+
+    if (_it_count == 0) {
+        _report_every = epochs >= 100 ? epochs / 10 : 1;
     }
 
     try
@@ -391,7 +392,11 @@ int MDNTrainer<NetworkType>::train(int epochs)
     if (is_batch) {
         int tmp = epochs - (int) _lbfgsrep.iterationscount - 1;
         if (tmp > 0) {
-            std::cout << "New batch at iteration " << _it_count << std::endl;
+            std::cout << "New batch at iteration " << _it_count;
+            if (_validationset != 0) {
+                std::cout << ", E_validation=" << _validation_errors.back();
+            }
+            std::cout << std::endl;
             std::random_shuffle(_idxs.begin(), _idxs.end());
             sigaction(SIGINT, &oldSigAction, NULL);
             return train(tmp);
