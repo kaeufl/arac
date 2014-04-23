@@ -793,6 +793,10 @@ class MDN : public Network
 		void get_output_error(double* output_p, int outputsize,
 							  double* target_p, int targetsize,
 							  double* outputerror_p);
+				void get_posterior(const double* x, int nx, int ndi,
+                     const double* t, int nt, int ndt,
+                     double* y, int ny, int ndy,
+                     double* posterior, int np);
         //void softmax(const double* x_p, double* y_p, int len);
 };
 
@@ -813,7 +817,8 @@ class MDN : public Network
 class PeriodicMDN : public MDN
 {
     public:
-        PeriodicMDN(int M, int c);
+        //PeriodicMDN(int M, int c);
+        PeriodicMDN(int M, int c, int nperiods);
         double get_error(double* output_p, int outputsize,
                  double* target_p, int targetsize);
         void get_output_error(double* output_p, int outputsize,

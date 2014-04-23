@@ -124,7 +124,7 @@ class PybrainAracMapper(object):
         try:
             proxy = self[network]
         except KeyError:
-            proxy = cppbridge.PeriodicMDN(network.M, network.c)
+            proxy = cppbridge.PeriodicMDN(network.M, network.c, network.nperiods)
             self[network] = proxy
         proxy.init_input(network.inputbuffer)
         proxy.init_output(network.outputbuffer)
@@ -459,4 +459,9 @@ class _MixtureDensityNetwork(_FeedForwardNetwork, MixtureDensityNetwork):
     
 class _PeriodicMixtureDensityNetwork(_MixtureDensityNetwork, PeriodicMixtureDensityNetwork):
     """Pybrain adapter for an arac periodic MDN."""
-    pass
+    def __init__(self, M, c, nperiods, *args, **kwargs):
+        _MixtureDensityNetwork.__init__(self, M, c, *args, **kwargs)
+        self.nperiods = nperiods
+        # we have to include the additional arguments in argdict in order to
+        # have XML serialization work properly
+        self.argdict['nperiods'] = nperiods

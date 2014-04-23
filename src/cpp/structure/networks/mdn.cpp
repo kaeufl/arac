@@ -120,10 +120,28 @@ MDN::dist(const double* target_p, const double* params_p, int m)
 	return dist;
 }
 
+void MDN::get_posterior(const double* x, int nx, int ndi,
+                        const double* t, int nt, int ndt,
+                        double* y, int ny, int ndy,
+                        double* posterior, int np)
+{
+    for (int i=0; i<nx; i++) {
+        activate(&x[i], &y[i]);
+    }
+}
+
 PeriodicMDN::PeriodicMDN(int M, int c) :
     MDN(M, c),
     _nperiods(7)
 {
+  //std::cout << "Nperiods:" << _nperiods << std::endl;
+}
+
+PeriodicMDN::PeriodicMDN(int M, int c, int nperiods) :
+    MDN(M, c),
+    _nperiods(nperiods)
+{
+  //std::cout << "Nperiods:" << _nperiods << std::endl;
 }
 
 void
