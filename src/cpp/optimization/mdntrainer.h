@@ -60,11 +60,17 @@ class MDNTrainer
         SupervisedDataset<double*, double*>& validationset();
 
         ///
+        /// Set the training dataset.
+        ///
+        void set_dataset(SupervisedDataset<double*, double*>& dataset);
+
+        ///
         /// Train network for 'epochs' iterations.
 	/// Note: if a validation set has been provided during object initialization,
 	/// the attached module parameters are set to the optimal parameters with
 	/// respect to the validation set minimum.
         ///
+        int train(int epochs, bool early_stop);
         int train(int epochs);
         int train();
 
@@ -295,7 +301,15 @@ SupervisedDataset<double*, double*>& MDNTrainer<NetworkType>::validationset()
 }
 
 template<typename NetworkType>
-int MDNTrainer<NetworkType>::train(int epochs)
+void MDNTrainer<NetworkType>::set_dataset(SupervisedDataset<double*, double*>& dataset)
+{
+    _dataset = &dataset;
+}
+
+
+
+template<typename NetworkType>
+int MDNTrainer<NetworkType>::train(int epochs, bool early_stop)
 {
     // set custom signal handler
     struct sigaction sigIntHandler, oldSigAction;
@@ -370,7 +384,8 @@ int MDNTrainer<NetworkType>::train(int epochs)
     {
     	// If a validation set was provided, set parameters to the set of parameters
 		// where the minimum validation set error has occured.
-    	if (_validationset != 0) {
+    	if (_validationset != 0 && early_stop == true) {
+    	    std::cout << "Setting network parameters to optimum found at iteration " << _optimal_it << "." << std::endl;
     	    set_params(_optimal_x);
     	}
     	sigaction(SIGINT, &oldSigAction, NULL);
@@ -405,7 +420,8 @@ int MDNTrainer<NetworkType>::train(int epochs)
 
     // If a validation set was provided, set parameters to the set of parameters
 	// where the minimum validation set error has occured.
-    if (_validationset != 0) {
+    if (_validationset != 0  && early_stop == true) {
+        std::cout << "Setting network parameters to optimum found at iteration " << _optimal_it << "." << std::endl;
     	set_params(_optimal_x);
     } else {
 		set_params(param_new);
@@ -415,6 +431,12 @@ int MDNTrainer<NetworkType>::train(int epochs)
     //std::cout << "Finished training" << std::endl;
 
     return _terminationtype;
+}
+
+template<typename NetworkType>
+int MDNTrainer<NetworkType>::train(int epochs)
+{
+  return train(epochs, true);
 }
 
 template<typename NetworkType>

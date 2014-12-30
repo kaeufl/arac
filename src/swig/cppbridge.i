@@ -1107,6 +1107,8 @@ class MDNTrainer
         ~MDNTrainer();
         NetworkType& network();
         SupervisedSimpleDataset& dataset();
+        void set_dataset(SupervisedSimpleDataset& dataset);
+        int train(int epochs, bool early_stop);
         int train(int epochs);
         int train();
         int get_terminationtype();
